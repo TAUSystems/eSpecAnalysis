@@ -1238,12 +1238,6 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 				strStart = fileName.find("-");
 				fileName = fileName.substr(strStart + 1, fileName.length() - strStart - 1);
 
-				getImage(listRef[i], imBuffer);
-				perspectiveTransform(imBuffer, H[screenA], viewResA, imA);
-				removeOutlier(imA, 4.0);
-				medianFilter(imA, 2);
-				fileCount = fileCount + 1;
-
 				fileLoopCount = 0;
 				fileFound = 0;
 				fileFindLoop = 1;
@@ -1267,7 +1261,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					perspectiveTransform(imBuffer, H[screenB], viewResB, imB);
 					removeOutlier(imB, 4.0);
 					medianFilter(imB, 2);
-					fileCount = fileCount + 3;
+					fileCount = fileCount + 5;
 				}
 
 				fileLoopCount = 0;
@@ -1293,8 +1287,14 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					perspectiveTransform(imBuffer, H[screenP], viewResP, imP);
 					removeOutlier(imP, 4.0);
 					medianFilter(imP, 2);
-					fileCount = fileCount + 5;
+					fileCount = fileCount + 3;
 				}
+
+				getImage(listRef[i], imBuffer);
+				perspectiveTransform(imBuffer, H[screenA], viewResA, imA);
+				removeOutlier(imA, 4.0);
+				medianFilter(imA, 2);
+				fileCount = fileCount + 1;
 
 				if (fileCount == 9) {
 					double peakValue, peakValueB;
@@ -1394,16 +1394,16 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 						printf("Could Not Find Pointing and eScreen B.\n");
 						break;
 					case 3:
-						printf("Could Not Find Pointing and eScreen A.\n");
-						break;
-					case 4:
-						printf("Could Not Find Pointing.\n");
-						break;
-					case 5:
 						printf("Could Not Find eScreen A and eScreen B.\n");
 						break;
-					case 6:
+					case 4:
 						printf("could Not Find eScreen B.\n");
+						break;
+					case 5:
+						printf("Could Not Find Pointing and eScreen A.\n");
+						break;
+					case 6:
+						printf("Could Not Find Pointing.\n");
 						break;
 					case 8:
 						printf("Could Not Find eScreen A.\n");
