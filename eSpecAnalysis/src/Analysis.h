@@ -1424,95 +1424,80 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 
 void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, int& screen, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
     std::string listPath = eSpec.screenPath(screen);
-	std::vector<std::string> listOld;
-	listDir(listPath, listOld);
-    std::vector<std::string> listNew;
 	std::vector<double> viewRes = calibration.viewResolution(screen);
+	std::vector<std::string> listRef, listUpdate;
 	paramSpace null;
 
     bool loop = 1;
-    int Nold, Nnew;
-    imageBW image, imT;
+    imageBW imBuffer, im;
     std::vector<double> line;
 	int i = 0;
-    while (loop) {
-        listDir(listPath, listNew);
-        Nold = (int)listOld.size();
-        Nnew = (int)listNew.size();
-        if (Nnew != Nold) {
-			i = 0;
-            plt::close();
-            std::vector<bool> newItem;
-            newItem.resize(Nnew, 1);
-            for (int i = 0; i < Nnew; i++) {
-                for (int j = 0; j < Nold; j++) {
-                    if (listNew[i].find(listOld[j]) != std::string::npos) {
-                        newItem[i] = 0;
-                        break;
-                    }
+	std::vector<int> updateStatus;
+	while (loop) {
+		scanNewFile(listPath, listRef, updateStatus);
+		for (int i = 0; i < (int)updateStatus.size(); i++) {
+			if (updateStatus[i]) {
+				plt::close();
+
+				getImage(listRef[i], imBuffer);
+				perspectiveTransform(imBuffer, H[screen], viewRes, im);
+				removeOutlier(im, 4.0);
+				medianFilter(im, 2);
+
+    
+				size_t resV, resH;
+				double ratio;
+				if (screen == 0) {
+					resV = 720;
+					ratio = (double)im.sizeX() / (double)im.sizeY();
+					ratio = ratio * (resV + 7);
+					resH = (size_t)round(ratio);
+				}
+				else {
+					resH = 1900;
+					ratio = (double)im.sizeY() / (double)im.sizeX();
+					ratio = ratio * resH;
+					resV = (size_t)round(ratio);
+				}
+
+
+                std::vector<double> axis;
+                double limL, limU;
+				double pointing = 0.0;
+
+                plt::figure_size(resH, resV);
+                plt::subplot2grid(8, 8, 0, 0, 7, 7);
+                pltimshow(im, 1, "");
+				drawAxis(0, eSpec, null, screen, xRuler[screen], yRuler[screen],pointing);
+                plt::axis("off");
+                plt::subplot2grid(8, 8, 0, 7, 7, 1);
+                lineOut(1, 1, im, 0, line);
+                axis.resize((int)line.size(), 0.0);
+                for (int j = 0; j < (int)line.size(); j++) {
+                    axis[j] = (double)j;
                 }
-            }
-            for (int i = 0; i < Nnew; i++) {
-                if (newItem[i]) {
-                    getImage(listNew[i], image);
-					perspectiveTransform(image, H[screen], viewRes, imT);
-                    medianFilter(imT, 1);
-                    removeOutlier(imT, 4.0);
-					size_t resV, resH;
-					double ratio;
-					if (screen == 0) {
-						resV = 720;
-						ratio = (double)imT.sizeX() / (double)imT.sizeY();
-						ratio = ratio * (resV + 7);
-						resH = (size_t)round(ratio);
-					}
-					else {
-						resH = 1900;
-						ratio = (double)imT.sizeY() / (double)imT.sizeX();
-						ratio = ratio * resH;
-						resV = (size_t)round(ratio);
-					}
-
-
-                    std::vector<double> axis;
-                    double limL, limU;
-					double pointing = 0.0;
-
-                    plt::figure_size(resH, resV);
-                    plt::subplot2grid(8, 8, 0, 0, 7, 7);
-                    pltimshow(imT, 1, "");
-					drawAxis(0, eSpec, null, screen, xRuler[screen], yRuler[screen],pointing);
-                    plt::axis("off");
-                    plt::subplot2grid(8, 8, 0, 7, 7, 1);
-                    lineOut(1, 1, imT, 0, line);
-                    axis.resize((int)line.size(), 0.0);
-                    for (int j = 0; j < (int)line.size(); j++) {
-                        axis[j] = (double)j;
-                    }
-                    plt::plot(line, axis);
-                    limL = 0;
-                    limU = (double)line.size() - 1;
-                    plt::xlim(0.0, 1.0);
-                    plt::ylim(limL, limU);
-                    plt::tick_params({ {"labelsize","0"},{"direction","in"} });
-                    plt::subplot2grid(8, 8, 7, 0, 1, 7);
-                    lineOut(1, 1, imT, 1, line);
-                    axis.resize((int)line.size(), 0.0);
-                    for (int j = 0; j < (int)line.size(); j++) {
-                        axis[j] = (double)j;
-                    }
-                    plt::plot(axis, line);
-                    limL = 0;
-                    limU = (double)line.size() - 1;
-                    plt::xlim(limL, limU);
-                    plt::ylim(0.0, 1.0);
-                    plt::tick_params({ {"labelsize","0"},{"direction","in"} });
-					plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
-                    plt::draw();
+                plt::plot(line, axis);
+                limL = 0;
+                limU = (double)line.size() - 1;
+                plt::xlim(0.0, 1.0);
+                plt::ylim(limL, limU);
+                plt::tick_params({ {"labelsize","0"},{"direction","in"} });
+                plt::subplot2grid(8, 8, 7, 0, 1, 7);
+                lineOut(1, 1, im, 1, line);
+                axis.resize((int)line.size(), 0.0);
+                for (int j = 0; j < (int)line.size(); j++) {
+                    axis[j] = (double)j;
                 }
+                plt::plot(axis, line);
+                limL = 0;
+                limU = (double)line.size() - 1;
+                plt::xlim(limL, limU);
+                plt::ylim(0.0, 1.0);
+                plt::tick_params({ {"labelsize","0"},{"direction","in"} });
+				plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
+                plt::draw();
             }
         }
-        listOld = listNew;
         plt::show(false);
 		plt::pause(rate);
         //std::this_thread::sleep_for(std::chrono::milliseconds((long)rate));
@@ -1521,7 +1506,6 @@ void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibrat
 		}
 		i++;
     }
-
     plt::close();
 }
 
