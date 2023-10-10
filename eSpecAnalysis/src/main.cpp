@@ -2,6 +2,9 @@
 #include "Analysis.h"
 
 int main() {
+    int threadCount = omp_get_max_threads();
+    omp_set_num_threads(threadCount);
+
 	std::string pathRoot = getPath();
 	std::string pathSettings = pathRoot + "/settings.cfg";
 	std::string pathCalibration = pathRoot + "/Calibration";
