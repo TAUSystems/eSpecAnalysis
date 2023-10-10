@@ -7,6 +7,7 @@ add_executable (eSpecAnalysis "src/main.cpp" )
 
 target_link_libraries (eSpecAnalysis ${OpenCV_LIBS})
 target_link_libraries (eSpecAnalysis ${PYTHON_LIBRARIES})
+target_link_libraries (eSpecAnalysis OpenMP::OpenMP_CXX)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property (TARGET eSpecAnalysis PROPERTY CXX_STANDARD 20)
