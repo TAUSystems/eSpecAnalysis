@@ -33,16 +33,17 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	lineY.resize(Ny, 0.0);
 	dLineY.resize(Ny, 0.0);
 	countY.resize(Ny, 0);
-	for (int i = 0; i < Ny; i++) {
-		if (i > 0 && i < Ny - 1) {
-			dLineY[i] = (imSmooth.value(peak[0], i + 1) - imSmooth.value(peak[0], i - 1)) / peakValue;
+	#pragma omp parallel for reduction(+:meanY)
+		for (int i = 0; i < Ny; i++) {
+			if (i > 0 && i < Ny - 1) {
+				dLineY[i] = (imSmooth.value(peak[0], i + 1) - imSmooth.value(peak[0], i - 1)) / peakValue;
+			}
+			else {
+				dLineY[i] = 0.0;
+			}
+			lineY[i] = imSmooth.value(peak[0], i);
+			meanY = meanY + lineY[i];
 		}
-		else {
-			dLineY[i] = 0.0;
-		}
-		lineY[i] = imSmooth.value(peak[0], i);
-		meanY = meanY + lineY[i];
-	}
 	meanY = meanY / Ny;
 
 	int counter;
@@ -107,16 +108,17 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	lineX.resize(Nx, 0.0);
 	dLineX.resize(Nx, 0.0);
 	countX.resize(Nx, 0);
-	for (int i = 0; i < Nx; i++) {
-		if (i > 0 && i < Nx - 1) {
-			dLineX[i] = (imSmooth.value(i + 1, peak[1]) - imSmooth.value(i - 1, peak[1])) / peakValue;
+	#pragma omp parallel for reduction(+:meanY)
+		for (int i = 0; i < Nx; i++) {
+			if (i > 0 && i < Nx - 1) {
+				dLineX[i] = (imSmooth.value(i + 1, peak[1]) - imSmooth.value(i - 1, peak[1])) / peakValue;
+			}
+			else {
+				dLineX[i] = 0.0;
+			}
+			lineX[i] = imSmooth.value(i, peak[0]);
+			meanX = meanX + lineX[i];
 		}
-		else {
-			dLineX[i] = 0.0;
-		}
-		lineX[i] = imSmooth.value(i, peak[0]);
-		meanX = meanX + lineX[i];
-	}
 	meanX = meanX / Nx;
 
 	counter;
@@ -1248,13 +1250,15 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					if (fileFound) {
 						fileFindLoop = 0;
 					}
+					else {
+						std::this_thread::sleep_for(std::chrono::milliseconds((long)loopWait));
+					}
 					if (fileLoopCount > 30) {
 						fileFindLoop = 0;
 						fileFound = 0;
 						std::cout << "Can not find eScreen B file.\n";
 					}
 					fileLoopCount = fileLoopCount + 1;
-					std::this_thread::sleep_for(std::chrono::milliseconds((long)loopWait));
 				}
 				if (fileFound) {
 					getImage(listB[index], imBuffer);
@@ -1274,13 +1278,15 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					if (fileFound) {
 						fileFindLoop = 0;
 					}
+					else{
+						std::this_thread::sleep_for(std::chrono::milliseconds((long)loopWait));
+					}
 					if (fileLoopCount > 30) {
 						fileFindLoop = 0;
 						fileFound = 0;
 						std::cout << "Can not find Pointing file.\n";
 					}
 					fileLoopCount = fileLoopCount + 1;
-					std::this_thread::sleep_for(std::chrono::milliseconds((long)loopWait));
 				}
 				if (fileFound) {
 					getImage(listP[index], imBuffer);

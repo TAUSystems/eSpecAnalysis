@@ -1,7 +1,5 @@
 #pragma once
 
-#pragma once
-
 #ifndef __fileIO_h__
 #define __fileIO_h__
 
@@ -11,6 +9,8 @@
 #include <string>
 #include <vector>
 #include <ctime>
+
+#include <omp.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
@@ -41,15 +41,13 @@ public:
         size[1] = (size_t)Ny;
         data = (double**)malloc(sizeof(double*) * size[0]);
 
-        #pragma omp parallel 
-        {
-            for (size_t i = 0; i < size[0]; i++) {
+        #pragma omp parallel for
+            for (int i = 0; i < (int)size[0]; i++) {
                 data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (size_t j = 0; j < size[1]; j++) {
+                for (int j = 0; j < (int)size[1]; j++) {
                     data[i][j] = 0.0;
                 }
             }
-        }
     }
 
     void resize(size_t Nx, size_t Ny) {
@@ -57,15 +55,13 @@ public:
         size[1] = Ny;
         data = (double**)malloc(sizeof(double*) * size[0]);
 
-        #pragma omp parallel 
-        {
-            for (size_t i = 0; i < size[0]; i++) {
+        #pragma omp parallel for
+            for (int i = 0; i < (int)size[0]; i++) {
                 data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (size_t j = 0; j < size[1]; j++) {
+                for (int j = 0; j < (int)size[1]; j++) {
                     data[i][j] = 0.0;
                 }
             }
-        }
     }
 
     void resize(std::vector<size_t> winSize) {
@@ -73,15 +69,13 @@ public:
         size[1] = winSize[1];
         data = (double**)malloc(sizeof(double*) * size[0]);
 
-        #pragma omp parallel 
-        {
-            for (size_t i = 0; i < size[0]; i++) {
+        #pragma omp parallel for
+            for (int i = 0; i < (int)size[0]; i++) {
                 data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (size_t j = 0; j < size[1]; j++) {
+                for (int j = 0; j < (int)size[1]; j++) {
                     data[i][j] = 0.0;
                 }
             }
-        }
     }
 
     void resize(cv::Size imgSize) {
@@ -89,15 +83,13 @@ public:
         size[1] = imgSize.height;
         data = (double**)malloc(sizeof(double*) * size[0]);
 
-        #pragma omp parallel 
-        {
-            for (size_t i = 0; i < size[0]; i++) {
+        #pragma omp parallel for
+            for (int i = 0; i < (int)size[0]; i++) {
                 data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (size_t j = 0; j < size[1]; j++) {
+                for (int j = 0; j < (int)size[1]; j++) {
                     data[i][j] = 0.0;
                 }
             }
-        }
     }
 
     void resize(std::vector<cv::Point2d> bounds) {
@@ -110,15 +102,13 @@ public:
         size[1] = (size_t)(NfY - NsY);
         data = (double**)malloc(sizeof(double*) * size[0]);
 
-        #pragma omp parallel 
-        {
-            for (size_t i = 0; i < size[0]; i++) {
+        #pragma omp parallel for
+            for (int i = 0; i < (int)size[0]; i++) {
                 data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (size_t j = 0; j < size[1]; j++) {
+                for (int j = 0; j < (int)size[1]; j++) {
                     data[i][j] = 0.0;
                 }
             }
-        }
     }
 
     void destroy() {
@@ -188,17 +178,14 @@ public:
         int Ny = NfY - NsY;
         output.resize(Nx, Ny);
 
-        #pragma omp parallel 
-        {
-            int Ni, Nj;
-            for (size_t i = 0; i < Nx; i++) {
-                for (size_t j = 0; j < Ny; j++) {
-                    Ni = (int)(NsX + i);
-                    Nj = (int)(NsY + j);
+        #pragma omp parallel for
+            for (int i = 0; i < Nx; i++) {
+                for (int j = 0; j < Ny; j++) {
+                    int Ni = (int)(NsX + i);
+                    int Nj = (int)(NsY + j);
                     output.definePixel(i, j, data[Ni][Nj]);
                 }
             }
-        }
     }
 
     void crop(std::vector<int> bounds, imageBW& output) {
@@ -232,17 +219,15 @@ public:
         int Ny = NfY - NsY;
         output.resize(Nx, Ny);
 
-    #pragma omp parallel 
-        {
-            int Ni, Nj;
-            for (size_t i = 0; i < Nx; i++) {
-                for (size_t j = 0; j < Ny; j++) {
-                    Ni = (int)(NsX + i);
-                    Nj = (int)(NsY + j);
+        
+        #pragma omp parallel for
+            for (int i = 0; i < Nx; i++) {
+                for (int j = 0; j < Ny; j++) {
+                    int Ni = (int)(NsX + i);
+                    int Nj = (int)(NsY + j);
                     output.definePixel(i, j, data[Ni][Nj]);
                 }
             }
-        }
     }
 };
 
@@ -412,30 +397,24 @@ void getImage(std::string file, imageBW& output) {
         buffer.convertTo(buffer64f, CV_64F);
 
         output.resize(imgSize);
-        #pragma omp parallel 
-        {
-            double pxValue;
+        #pragma omp parallel for
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
-                    pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
+                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
                     output.definePixel(i, j, pxValue);
                 }
             }
-        }
     }
     else if (buffer.type() == 6) {
         bitDepth = 64;
         output.resize(imgSize);
-        #pragma omp parallel 
-        {
-            double pxValue;
+        #pragma omp parallel for
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
-                    pxValue = buffer.at<double>(j, i);
+                    double pxValue = buffer.at<double>(j, i);
                     output.definePixel(i, j, pxValue);
                 }
             }
-        }
     }
     else{
         bitDepth = 8;
@@ -443,16 +422,13 @@ void getImage(std::string file, imageBW& output) {
         buffer.convertTo(buffer64f, CV_64F);
 
         output.resize(imgSize);
-        #pragma omp parallel 
-        {
-            double pxValue;
+        #pragma omp parallel for
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
-                    pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
+                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
                     output.definePixel(i, j, pxValue);
                 }
             }
-        }
     }
     
 }
@@ -471,30 +447,24 @@ void getImage(cv::Mat input, imageBW& output) {
         input.convertTo(buffer64f, CV_64F);
 
         output.resize(imgSize);
-        #pragma omp parallel 
-        {
-            double pxValue;
+        #pragma omp parallel for
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
-                    pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
+                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
                     output.definePixel(i, j, pxValue);
                 }
             }
-        }
     }
     else if (input.type() == 6) {
         bitDepth = 64;
         output.resize(imgSize);
-        #pragma omp parallel 
-        {
-            double pxValue;
+        #pragma omp parallel for
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
-                    pxValue = input.at<double>(j, i);
+                    double pxValue = input.at<double>(j, i);
                     output.definePixel(i, j, pxValue);
                 }
             }
-        }
     }
     else {
         bitDepth = 8;
@@ -502,16 +472,13 @@ void getImage(cv::Mat input, imageBW& output) {
         input.convertTo(buffer64f, CV_64F);
 
         output.resize(imgSize);
-        #pragma omp parallel 
-        {
-            double pxValue;
+        #pragma omp parallel for
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
-                    pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
+                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
                     output.definePixel(i, j, pxValue);
                 }
             }
-        }
     }
 
 }
@@ -521,16 +488,13 @@ void imgshow(imageBW image) {
     int Ny = (int)image.sizeY();
     cv::Mat buffer(Ny, Nx, CV_64F);
 
-    #pragma omp parallel 
-    {
-        double pxBuffer;
+    #pragma omp parallel for
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
-                pxBuffer = image.value(i, j);
+                double pxBuffer = image.value(i, j);
                 buffer.at<CvType<CV_64F>::type_t>(j, i) = pxBuffer;
             }
         }
-    }
 
     cv::namedWindow(" ", cv::WINDOW_AUTOSIZE);
     cv::imshow(" ", buffer);
@@ -577,8 +541,7 @@ public:
         int N = (int)settingsParameters.size();
 
         std::string rootPath;
-        #pragma omp parallel 
-        {
+        #pragma omp parallel for
             for (int i = 0; i < N; i++) {
                 if (settingsParameters[i].find("dirRoot") != std::string::npos) {
                     size_t indexStart = settingsParameters[i].find("=") + 1;
@@ -739,7 +702,6 @@ public:
                     screen[2][4] = std::stod(strValue.c_str());
                 }
             }
-        }
         std::string dateString = getDate();
         path[0] = rootPath + "\\" + dateString + "\\" + path[0];
         path[1] = rootPath + "\\" + dateString + "\\" + path[1];
@@ -820,8 +782,7 @@ public:
 
         int N = (int)calibration.size();
 
-        #pragma omp parallel 
-        {
+        #pragma omp parallel for
             for (int i = 0; i < N; i++) {
                 if (calibration[i].find("xTEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
@@ -1107,7 +1068,6 @@ public:
                     threshold[3][3] = std::stod(strValue.c_str());
                 }
             }
-        }
 
         for (int i = 0; i < 4; i++) {
             if (i == 0) {

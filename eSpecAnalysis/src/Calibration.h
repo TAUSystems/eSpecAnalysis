@@ -47,8 +47,7 @@ void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& 
     bounds[3] = Ny;
     input.crop(bounds, output);
 
-    #pragma omp parallel 
-    {
+    #pragma omp parallel for
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
                 cv::Point3d pixel((double)i, (double)j, 1.0);
@@ -73,7 +72,6 @@ void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& 
                 output.definePixel(i, j, value);
             }
         }
-    }
 }
 
 void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
@@ -81,8 +79,7 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
 
     std::vector<double> edge;
     edge.resize(N, 0.0);
-    #pragma omp parallel
-    {
+    #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             if (i == 0 || i == N - 1) {
                 edge[i] = 0;
@@ -91,7 +88,6 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
                 edge[i] = input[i - 1] - 2 * input[i] + input[i + 1];
             }
         }
-    }
     medianFilter(edge, 1);
     /*
     if (mode == 1) {
@@ -99,8 +95,7 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
         plt::show();
     }
     */
-    #pragma omp parallel
-    {
+    #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             if (edge[i] > threshold) {
                 edge[i] = 1;
@@ -109,17 +104,13 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
                 edge[i] = 0;
             }
         }
-    }
     std::vector<double> dedge;
     dedge.resize(N, 0.0);
-    #pragma omp parallel
-    {
+    #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             dedge[i] = abs(edge[i + 1] - edge[i]);
         }
-    }
-    #pragma omp parallel
-    {
+    #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             if (dedge[i] < 0.1) {
                 edge[i] = edge[i];
@@ -128,7 +119,6 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
                 edge[i] = 0;
             }
         }
-    }
     input = edge;
 }
 

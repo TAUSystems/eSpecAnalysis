@@ -59,8 +59,7 @@ void plot3D(std::vector<double>& x, std::vector<double>& y, imageBW& z, std::str
 	yAxis.resize(Nx);
 	zAxis.resize(Nx);
 
-	#pragma omp parallel 
-	{
+	#pragma omp parallel for
 		for (int i = 0; i < Nx; i++) {
 			xAxis[i].resize(Ny, 0.0);
 			yAxis[i].resize(Ny, 0.0);
@@ -71,7 +70,6 @@ void plot3D(std::vector<double>& x, std::vector<double>& y, imageBW& z, std::str
 				zAxis[i][j] = z.value(i, j);
 			}
 		}
-	}
 
 	std::map<std::string, std::string> keywords;
 	keywords.insert(std::pair<std::string, std::string>("label", label));
@@ -89,8 +87,7 @@ void plot3D(std::vector<double>& x, std::vector<double>& y, std::vector<std::vec
 	yAxis.resize(Nx);
 	zAxis.resize(Nx);
 
-	#pragma omp parallel 
-	{
+	#pragma omp parallel for
 		for (int i = 0; i < Nx; i++) {
 			xAxis[i].resize(Ny, 0.0);
 			yAxis[i].resize(Ny, 0.0);
@@ -101,7 +98,6 @@ void plot3D(std::vector<double>& x, std::vector<double>& y, std::vector<std::vec
 				zAxis[i][j] = z[i][j];
 			}
 		}
-	}
 
 	std::map<std::string, std::string> keywords;
 	keywords.insert(std::pair<std::string, std::string>("label", label));
@@ -109,13 +105,12 @@ void plot3D(std::vector<double>& x, std::vector<double>& y, std::vector<std::vec
 }
 
 void pltimshow(imageBW& image, bool invert, std::string label) {
-	int Nx = image.sizeX();
-	int Ny = image.sizeY();
+	int Nx = (int)image.sizeX();
+	int Ny = (int)image.sizeY();
 	std::vector<float> buffer(Nx * Ny);
 
 	if (invert) {
-		#pragma omp parallel 
-		{
+		#pragma omp parallel for
 			for (int i = 0; i < Nx; i++) {
 				int Nj;
 				for (int j = 0; j < Ny; j++) {
@@ -123,11 +118,9 @@ void pltimshow(imageBW& image, bool invert, std::string label) {
 					buffer.at(Nx * j + i) = (float)image.value(i, Nj);
 				}
 			}
-		}
 	}
 	else {
-		#pragma omp parallel 
-		{
+		#pragma omp parallel for
 			for (int i = 0; i < Nx; i++) {
 				int Nj;
 				for (int j = 0; j < Ny; j++) {
@@ -135,7 +128,6 @@ void pltimshow(imageBW& image, bool invert, std::string label) {
 					buffer.at(Nx * j + i) = (float)image.value(i, Nj);
 				}
 			}
-		}
 	}
 
 	const float* buffer_ptr = &(buffer[0]);

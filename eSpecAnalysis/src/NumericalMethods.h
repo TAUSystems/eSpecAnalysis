@@ -9,7 +9,7 @@
 
 //Composite Simpson's 3/8 Rule
 void simpsonInt(double& dx, std::vector<double>& y, double& output) {
-    output = 0.0;
+    double output_buffer = 0.0;
     size_t N = y.size()-1;
     int remainder = N % 3;
     size_t Nend = (size_t)floor(N / 3);
@@ -19,10 +19,11 @@ void simpsonInt(double& dx, std::vector<double>& y, double& output) {
     else if (remainder == 2) {
         Nend++;
     }
-    for (int i = 1; i < Nend; i++) {
-        output = output + y[3 * i - 3] + 3.0 * y[3 * i - 2] + 3.0 * y[3 * i - 1] + y[3 * i];
-    }
-    output = output * dx * 3.0 / 8.0;
+    #pragma omp parallel for reduction(+:output_buffer)
+        for (int i = 1; i < Nend; i++) {
+            output_buffer = output_buffer + y[3 * i - 3] + 3.0 * y[3 * i - 2] + 3.0 * y[3 * i - 1] + y[3 * i];
+        }
+    output = output_buffer * dx * 3.0 / 8.0;
     if (remainder > 0) {
         output = output + dx / 3.0 * (y[3 * (Nend - 1)] + 4.0 * y[3 * (Nend - 1) + 1] + y[3 * (Nend - 1) + 2]);
         if (remainder == 1) {
@@ -583,12 +584,13 @@ void transpose(std::vector<std::vector<double>> &matrix) {
 
     std::vector<std::vector<double>> output;
     output.resize(Ny);
-    for (int i = 0; i < Ny; i++) {
-        output[i].resize(Nx);
-        for (int j = 0; j < Nx; j++) {
-            output[i][j] = matrix[j][i];
+    #pragma omp parallel for
+        for (int i = 0; i < Ny; i++) {
+            output[i].resize(Nx);
+            for (int j = 0; j < Nx; j++) {
+                output[i][j] = matrix[j][i];
+            }
         }
-    }
     matrix = output;
 }
 
@@ -600,14 +602,12 @@ void lineOut(bool normalize, double power, imageBW& Image, int AxisSum, std::vec
 
         
         output.resize(Ni,0.0);
-        #pragma omp parallel 
-        {
+        #pragma omp parallel for
             for (int i = 0; i < Ni; i++) {
                 for (int j = 0; j < Nj; j++) {
                     output[i] = output[i] + std::pow(Image.value(i, j), power);
                 }
             }
-        }
 
         if (normalize) {
             double maxValue = -pow(2.0, 32.0);
@@ -620,12 +620,10 @@ void lineOut(bool normalize, double power, imageBW& Image, int AxisSum, std::vec
                     maxValue = output[i];
                 }
             }
-            #pragma omp parallel 
-            {
+            #pragma omp parallel for
                 for (int i = 0; i < Ni; i++) {
                     output[i] = (output[i] - minValue) / (maxValue - minValue);
                 }
-            }
         }
     }
     else {
@@ -640,14 +638,12 @@ void lineOut(bool normalize, double power, imageBW& Image, int AxisSum, std::vec
         });
 
         output.resize(Ni, 0.0);
-        #pragma omp parallel 
-        {
+        #pragma omp parallel for
             for (int i = 0; i < Ni; i++) {
                 for (int j = 0; j < Nj; j++) {
                     output[i] = output[i] + std::pow(Image.value(j, i), power);
                 }
             }
-        }
 
         if (normalize) {
             double maxValue = -pow(2.0, 32.0);
@@ -660,12 +656,10 @@ void lineOut(bool normalize, double power, imageBW& Image, int AxisSum, std::vec
                     maxValue = output[i];
                 }
             }
-            #pragma omp parallel 
-            {
+            #pragma omp parallel for
                 for (int i = 0; i < Ni; i++) {
                     output[i] = (output[i] - minValue) / (maxValue - minValue);
                 }
-            }
         }
     }
 }
@@ -675,8 +669,7 @@ void medianFilter(std::vector<double>& data, int windowRadius) {
 
     std::vector<double> filtered;
     filtered.resize(N, 0.0);
-    #pragma omp parallel 
-    {
+    #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             if (i >= windowRadius) {
                 if (i < N - windowRadius) {
@@ -709,7 +702,6 @@ void medianFilter(std::vector<double>& data, int windowRadius) {
                 filtered[i] = window[windowRadius + 1];
             }
         }
-    }
 
     data = filtered;
 }
@@ -723,8 +715,7 @@ void medianFilter(imageBW& data, int windowRadius) {
     imageBW filtered;
     filtered.resize(Nx, Ny);
     int indexW = (int)((Nw * Nw + 1) / 2);
-    #pragma omp parallel 
-    {
+    #pragma omp parallel for
         for (int i = 0; i < Nx; i++) {
             if (i >= windowRadius) {
                 if (i < Nx - windowRadius) {
@@ -853,7 +844,6 @@ void medianFilter(imageBW& data, int windowRadius) {
                 }
             }
         }
-    }
 
     data = filtered;
 }
@@ -864,23 +854,24 @@ void removeOutlier(imageBW& data, double sigmaOrder) {
 
     double meanValue = 0.0;
     
-    for (int i = 0; i < Nx; i++) {
-        for (int j = 0; j < Ny; j++) {
-            meanValue = meanValue + data.value(i, j);
+    #pragma omp parallel for reduction(+:meanValue)
+        for (int i = 0; i < Nx; i++) {
+            for (int j = 0; j < Ny; j++) {
+                meanValue = meanValue + data.value(i, j);
+            }
         }
-    }
     meanValue = meanValue / (Nx * Ny);
     double stdValue = 0.0;
-    for (int i = 0; i < Nx; i++) {
-        for (int j = 0; j < Ny; j++) {
-            stdValue = stdValue + (data.value(i, j) - meanValue) * (data.value(i, j) - meanValue);
+    #pragma omp parallel for reduction(+:stdValue)
+        for (int i = 0; i < Nx; i++) {
+            for (int j = 0; j < Ny; j++) {
+                stdValue = stdValue + (data.value(i, j) - meanValue) * (data.value(i, j) - meanValue);
+            }
         }
-    }
     stdValue = sqrt(stdValue / (Nx * Ny));
 
     double limit = meanValue + sigmaOrder * stdValue;
-    #pragma omp parallel 
-    {
+    #pragma omp parallel for
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
                 if (data.value(i, j) > limit) {
@@ -888,56 +879,54 @@ void removeOutlier(imageBW& data, double sigmaOrder) {
                 }
             }
         }
-    }
 }
 
 void Contrast(double scale, std::vector<double>& input) {
     int N = (int)input.size();
 
     double avg = 0.0;
-    for (int i = 0; i < N; i++) {
-        avg = avg + input[i];
-    }
+    #pragma omp parallel for reduction(+:avg)
+        for (int i = 0; i < N; i++) {
+            avg = avg + input[i];
+        }
     avg = avg / N;
 
-    #pragma omp parallel 
-    {
+    #pragma omp parallel for
         for (int i = 1; i < N - 1; i++) {
             input[i] = (scale * (input[i] - avg) + avg);
         }
-    }
     input[0] = input[1];
     input[N - 1] = input[N - 2];
 }
 
 void Average(std::vector<double>& input, double& avg) {
     int N = (int)input.size();
-    avg = 0.0;
-    for (int i = 0; i < N; i++) {
-        avg = avg + input[i];
-    }
-    avg = avg / N;
+    double avg_buffer = 0.0;
+    #pragma omp parallel for reduction(+:avg_buffer)
+        for (int i = 0; i < N; i++) {
+            avg_buffer = avg_buffer + input[i];
+        }
+    avg = avg_buffer / N;
 }
 
 void Difference(std::vector<double>& input, std::vector<double>& output) {
     int N = (int)input.size() - 1;
     output.resize(N, 0.0);
     
-    #pragma omp parallel 
-    {
+    #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             output[i] = input[i + 1] - input[i];
         }
-    }
 }
 
 void Deviation(std::vector<double>& input, double& mean, double& stdev) {
     int N = (int)input.size();
-    stdev = 0.0;
-    for (int i = 0; i < N; i++) {
-        stdev = stdev + (input[i] - mean) * (input[i] - mean);
-    }
-    stdev = sqrt(stdev / N);
+    double stdev_buffer = 0.0;
+    #pragma omp parallel for reduction(+:stdev_buffer)
+        for (int i = 0; i < N; i++) {
+            stdev_buffer = stdev_buffer + (input[i] - mean) * (input[i] - mean);
+        }
+    stdev = sqrt(stdev_buffer / N);
 }
 
 void linReg(std::vector<double>& x, std::vector<double>& y) {
@@ -948,21 +937,23 @@ void linReg(std::vector<double>& x, std::vector<double>& y) {
     sumY = 0;
     sumXY = 0;
     sumX2 = 0;
-    for (int i = 0; i < N ; i++) {
-        sumX = sumX + x[i];
-        sumY = sumY + y[i];
-        sumXY = sumXY + x[i] * y[i];
-        sumX2 = sumX2 + x[i] * x[i];
-    }
+    #pragma omp parallel for reduction(+:sumX, sumY, sumXY, sumX2)
+        for (int i = 0; i < N ; i++) {
+            sumX = sumX + x[i];
+            sumY = sumY + y[i];
+            sumXY = sumXY + x[i] * y[i];
+            sumX2 = sumX2 + x[i] * x[i];
+        }
 
     double a0, a1;
 
     a1 = (N * sumXY - sumX * sumY) / (N * sumX2 - sumX * sumX);
     a0 = (sumX2 * sumY - sumX * sumXY) / (N * sumX2 - sumX * sumX);
 
-    for (int i = 0; i < N; i++) {
-        y[i] = a0 + a1 * x[i];
-    }
+    #pragma omp parallel for
+        for (int i = 0; i < N; i++) {
+            y[i] = a0 + a1 * x[i];
+        }
 }
 
 void findMax(std::vector<double>& input, int& indexMax) {
