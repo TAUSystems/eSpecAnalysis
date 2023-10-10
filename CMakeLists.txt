@@ -13,11 +13,15 @@ endif()
 project ("eSpecAnalysis")
 find_package (OpenCV REQUIRED)
 find_package (PythonLibs REQUIRED)
+find_package (OpenMP REQUIRED)
+#find_package (Python3 REQUIRED COMPONENTS Interpreter NumPy)
 
+include_directories(${OpenMP_LIBRARY_DIR})
 include_directories (${OpenCV_INCLUDE_DIR})
 include_directories (${Python_INCLUDE_DIRS})
+include_directories ("C:/Program Files/Python39/include")
+include_directories ("C:/Users/Xing/AppData/Roaming/Python/Python39/site-packages/numpy/core/include")
 include_directories ("..//matplotlib-cpp-master")
-
 
 # Include sub-projects.
 add_subdirectory ("eSpecAnalysis")
