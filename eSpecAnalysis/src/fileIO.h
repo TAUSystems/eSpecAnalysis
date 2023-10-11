@@ -5,7 +5,12 @@
 
 #include <iostream>
 #include <fstream>
-#include <filesystem>
+#include <sys/stat.h>
+#ifdef _WIN32
+    #include <filesystem>
+#else
+    #include <unistd.h>
+#endif
 #include <string>
 #include <vector>
 #include <ctime>
@@ -244,29 +249,62 @@ std::string getDate() {
 }
 
 std::string getPath() {
-    std::filesystem::path buffer = std::filesystem::current_path();
-    return buffer.string();
+    std::string output;
+    #ifdef _WIN32
+        std::filesystem::path buffer = std::filesystem::current_path();
+        output = buffer.string();
+    #else
+        char buffer[1024];
+        getcwd(buffer, sizeof(buffer));
+        output = buffer;
+    #endif
+    return output;
 }
 
 void listDir(std::string& pathDir, std::vector<std::string>& list) {
     list.clear();
     std::string file;
     bool isIMG;
-    for (const auto& entry : std::filesystem::directory_iterator(pathDir)) {
-        isIMG = false;
-        file = entry.path().generic_string();
-        if (file.find(".tiff") != std::string::npos ||
-            file.find(".tif") != std::string::npos ||
-            file.find(".Tiff") != std::string::npos || 
-            file.find(".Tif") != std::string::npos || 
-            file.find(".TIFF") != std::string::npos || 
-            file.find(".TIF") != std::string::npos) {
-            isIMG = true;
+    #ifdef _WIN32
+        for (const auto& entry : std::filesystem::directory_iterator(pathDir)) {
+            isIMG = false;
+            file = entry.path().generic_string();
+            if (file.find(".tiff") != std::string::npos ||
+                file.find(".tif") != std::string::npos ||
+                file.find(".Tiff") != std::string::npos || 
+                file.find(".Tif") != std::string::npos || 
+                file.find(".TIFF") != std::string::npos || 
+                file.find(".TIF") != std::string::npos) {
+                isIMG = true;
+            }
+            if (isIMG) {
+                list.push_back(file);
+            }
         }
-        if (isIMG) {
-            list.push_back(file);
+    #else
+        DIR* dp = opendir(pathDir);
+        int dfd = dirfd(dp);
+        struct dirent* dirp;
+        while (readdir(dp) != NULL) {
+            struct stat sb;
+            fstatat(dfd, dirp->d_name, &sb, 0);
+            file = pathDir + "/";
+            file = file + dirp->d_name;
+            isIMG = false;
+            file = entry.path().generic_string();
+            if (file.find(".tiff") != std::string::npos ||
+                file.find(".tif") != std::string::npos ||
+                file.find(".Tiff") != std::string::npos ||
+                file.find(".Tif") != std::string::npos ||
+                file.find(".TIFF") != std::string::npos ||
+                file.find(".TIF") != std::string::npos) {
+                isIMG = true;
+            }
+            if (isIMG) {
+                list.push_back(file);
+            }
         }
-    }
+    #endif
 }
 
 void findRef(std::vector<std::string>& list, std::string& pathRef){
