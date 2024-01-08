@@ -17,7 +17,7 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	peak[1] = 0;
 	double C;
 	for (int i = 0; i < Nx; i++) {
-		for (int j = 0; j < Ny; j++){
+		for (int j = 0; j < Ny; j++) {
 			C = imSmooth.value(i, j);
 			if (C > peakValue) {
 				peak[0] = i;
@@ -34,22 +34,22 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	dLineY.resize(Ny, 0.0);
 	countY.resize(Ny, 0);
 	#pragma omp parallel for reduction(+:meanY)
-		for (int i = 0; i < Ny; i++) {
-			if (i > 0 && i < Ny - 1) {
-				dLineY[i] = (imSmooth.value(peak[0], i + 1) - imSmooth.value(peak[0], i - 1)) / peakValue;
-			}
-			else {
-				dLineY[i] = 0.0;
-			}
-			lineY[i] = imSmooth.value(peak[0], i);
-			meanY = meanY + lineY[i];
+	for (int i = 0; i < Ny; i++) {
+		if (i > 0 && i < Ny - 1) {
+			dLineY[i] = (imSmooth.value(peak[0], i + 1) - imSmooth.value(peak[0], i - 1)) / peakValue;
 		}
+		else {
+			dLineY[i] = 0.0;
+		}
+		lineY[i] = imSmooth.value(peak[0], i);
+		meanY = meanY + lineY[i];
+	}
 	meanY = meanY / Ny;
 
 	int counter;
 	bool loop = 1;
 	int i = 0;
-	while(loop) {
+	while (loop) {
 		counter = 0;
 		for (int j = 1; j < Ny - i - 4; j++) {
 			if (dLineY[i + j] < 0.0) {
@@ -82,23 +82,25 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 			loop = 0;
 		}
 	}
-	
+
 	loop = 1;
 	i = 1;
 	while (loop) {
-		if (dLineY[i] != 0.0 && dLineY[i + 1] != 0.0 && dLineY[i + 2] != 0.0) {
-			for (int j = 0; j < countY[i] + 1; j++) {
-				lineY[i + j] = ceil((lineY[i - 1] + lineY[i + countY[i]]) / 2.0);
-			}
-			i = i + countY[i] + 1;
-		}
-		else {
-			i++;
-		}
-		
-		if (i > Ny - 1) {
+		if (i + countY[i] + 1 > Ny - 1) {
 			loop = 0;
 		}
+		else {
+			if (dLineY[i] != 0.0 && dLineY[i + 1] != 0.0 && dLineY[i + 2] != 0.0) {
+				for (int j = 0; j < countY[i] + 1; j++) {
+					lineY[i + j] = ceil((lineY[i - 1] + lineY[i + countY[i]]) / 2.0);
+				}
+				i = i + countY[i] + 1;
+			}
+			else {
+				i++;
+			}
+		}
+		
 	}
 
 
@@ -109,16 +111,16 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	dLineX.resize(Nx, 0.0);
 	countX.resize(Nx, 0);
 	#pragma omp parallel for reduction(+:meanY)
-		for (int i = 0; i < Nx; i++) {
-			if (i > 0 && i < Nx - 1) {
-				dLineX[i] = (imSmooth.value(i + 1, peak[1]) - imSmooth.value(i - 1, peak[1])) / peakValue;
-			}
-			else {
-				dLineX[i] = 0.0;
-			}
-			lineX[i] = imSmooth.value(i, peak[0]);
-			meanX = meanX + lineX[i];
+	for (int i = 0; i < Nx; i++) {
+		if (i > 0 && i < Nx - 1) {
+			dLineX[i] = (imSmooth.value(i + 1, peak[1]) - imSmooth.value(i - 1, peak[1])) / peakValue;
 		}
+		else {
+			dLineX[i] = 0.0;
+		}
+		lineX[i] = imSmooth.value(i, peak[0]);
+		meanX = meanX + lineX[i];
+	}
 	meanX = meanX / Nx;
 
 	counter;
@@ -161,17 +163,19 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	loop = 1;
 	i = 1;
 	while (loop) {
-		if (dLineX[i] != 0.0 && dLineX[i + 1] != 0.0 && dLineX[i + 2] != 0.0) {
-			for (int j = 0; j < countX[i] + 1; j++) {
-				lineX[i + j] = ceil((lineX[i - 1] + lineX[i + countX[i]]) / 2.0);
-			}
-			i = i + countX[i] + 1;
+		if (i + countX[i] + 1 > Nx - 1) {
+			loop = 0;
 		}
 		else {
-			i++;
-		}
-		if (i > Nx - 1) {
-			loop = 0;
+			if (dLineX[i] != 0.0 && dLineX[i + 1] != 0.0 && dLineX[i + 2] != 0.0) {
+				for (int j = 0; j < countX[i] + 1; j++) {
+					lineX[i + j] = ceil((lineX[i - 1] + lineX[i + countX[i]]) / 2.0);
+				}
+				i = i + countX[i] + 1;
+			}
+			else {
+				i++;
+			}
 		}
 	}
 
@@ -186,7 +190,17 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 
 	for (int i = 0; i < 2 * N + 1; i++) {
 		xValue = (double)i + (double)peak[0] - (double)N;
-		yValue = lineX[peak[0] + i - N];
+		if (xValue < 0.0) {
+			yValue = lineX[0];
+		}
+		else {
+			if (xValue >= Nx) {
+				yValue = lineX[Nx - 1];
+			}
+			else {
+				yValue = lineX[peak[0] + i - N];
+			}
+		}
 		sumX[0] = sumX[0] + 1;
 		sumX[1] = sumX[1] + xValue;
 		sumX[2] = sumX[2] + xValue * xValue;
@@ -218,13 +232,6 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 		peak[0] = xValue;
 	}
 
-	/*
-	std::vector<double> fX;
-	fX.resize(Nx, 0.0);
-	for (int i = 0; i < Nx; i++) {
-		fX[i] = a0 + a1 * (double)i + a2 * (double)i * (double)i;
-	}
-	*/
 
 	N = (int)std::min(std::min((double)peak[1], (double)(Ny - peak[1])) - 1, 250.0);
 	sumX.resize(5, 0.0);
@@ -232,7 +239,17 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 
 	for (int i = 0; i < 2 * N + 1; i++) {
 		xValue = (double)i + (double)peak[1] - (double)N;
-		yValue = lineY[peak[1] + i - N];
+		if (xValue < 0.0) {
+			yValue = lineY[0];
+		}
+		else {
+			if (xValue >= Ny) {
+				yValue = lineY[Nx - 1];
+			}
+			else {
+				yValue = lineY[peak[1] + i - N];
+			}
+		}
 		sumX[0] = sumX[0] + 1;
 		sumX[1] = sumX[1] + xValue;
 		sumX[2] = sumX[2] + xValue * xValue;
@@ -263,26 +280,6 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	if (yValue >= 0 && yValue < (int)lineY.size()) {
 		peak[1] = yValue;
 	}
-
-	/*
-	std::vector<double> fY;
-	fY.resize(Ny, 0.0);
-	for (int i = 0; i < Ny; i++) {
-		fY[i] = a0 + a1 * (double)i + a2 * (double)i * (double)i;
-	}
-
-
-	std::cout << peak[0] << "\t" << peak[1] << "\n";
-
-	plt::figure();
-	plt::subplot(1, 2, 1);
-	plt::plot(lineX);
-	plt::plot(fX);
-	plt::subplot(1, 2, 2);
-	plt::plot(lineY);
-	plt::plot(fY);
-	plt::show();
-	*/
 
 }
 
@@ -1159,7 +1156,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 	screenA = 1;
 	screenB = 2;
 	screenP = 0;
-	std::string pathA, pathB, pathP, fileName, outputName;
+	std::string pathA, pathB, pathP, fileName, outputName, timeStamp;
 	pathA = eSpec.screenPath(screenA);
 	pathB = eSpec.screenPath(screenB);
 	pathP = eSpec.screenPath(screenP);
@@ -1230,23 +1227,31 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 	while (loop) {
 		scanNewFile(pathA, listRef, updateStatus);
 		for (int i = 0; i < (int)updateStatus.size(); i++) {
-			if (updateStatus[i]) {
+			if (updateStatus[i] == 1) {
+				printf("Found New File.\n");
 				plt::close();
+				imBuffer.destroy();
+				imA.destroy();
+				imB.destroy(); 
+				imP.destroy();
+				int maxValue = 0;
 				uint fileCount = 0;
 				fileName = listRef[i].substr(pathLength + 1, listRef[i].length() - pathLength - 1);
-				outputName = fileName.substr(0, fileName.length() - 5);
+				outputName = fileName.substr(0, fileName.length() - 5);\
 				int strStart = fileName.find("-");
 				fileName = fileName.substr(strStart + 1, fileName.length() - strStart - 1);
+				timeStamp = fileName;
 				strStart = fileName.find("-");
+				timeStamp = timeStamp.substr(0, strStart - 3);
 				fileName = fileName.substr(strStart + 1, fileName.length() - strStart - 1);
-
+				
 				fileLoopCount = 0;
 				fileFound = 0;
 				fileFindLoop = 1;
 				int index = -1;
 				while (fileFindLoop) {
 					listDir(pathB, listB);
-					fileFound = findFile(listB, fileName, index);
+					fileFound = findFile(listB, fileName, timeStamp, index);
 					if (fileFound) {
 						fileFindLoop = 0;
 					}
@@ -1261,6 +1266,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					fileLoopCount = fileLoopCount + 1;
 				}
 				if (fileFound) {
+					printf("Loading eScreen B Image.\n");
 					getImage(listB[index], imBuffer);
 					perspectiveTransform(imBuffer, H[screenB], viewResB, imB);
 					removeOutlier(imB, 4.0);
@@ -1274,7 +1280,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 				index = -1;
 				while (fileFindLoop) {
 					listDir(pathP, listP);
-					fileFound = findFile(listP, fileName, index);
+					fileFound = findFile(listP, fileName, timeStamp, index);
 					if (fileFound) {
 						fileFindLoop = 0;
 					}
@@ -1289,6 +1295,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					fileLoopCount = fileLoopCount + 1;
 				}
 				if (fileFound) {
+					printf("Loading Pointing Image.\n");
 					getImage(listP[index], imBuffer);
 					perspectiveTransform(imBuffer, H[screenP], viewResP, imP);
 					removeOutlier(imP, 4.0);
@@ -1296,6 +1303,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					fileCount = fileCount + 3;
 				}
 
+				printf("Loading eScreen A Image.\n");
 				getImage(listRef[i], imBuffer);
 				perspectiveTransform(imBuffer, H[screenA], viewResA, imA);
 				removeOutlier(imA, 4.0);
@@ -1303,7 +1311,8 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 				fileCount = fileCount + 1;
 
 				if (fileCount == 9) {
-					double peakValue, peakValueB;
+					printf("Loaded 3 Images.\n");
+					double peakValue, peakValueB, totalValue, acceptValue;
 					imP.crop(acceptanceBound, imBuffer);
 					findSignalPeak(imBuffer, peakBound, peakValueB);
 					findSignalPeak(imP, peak, peakValue);
@@ -1311,7 +1320,12 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					peakBound[1] = peakBound[1] + acceptanceBound[2];
 					eval = (double)((double)imP.sizeY() - 1 - peakBound[1]);
 					FE1DInterp(pxY, pointY, eval, pointing);
-
+					maxValue = (int)round(peakValue * 10000);
+					Sum(imP, totalValue);
+					Sum(imBuffer, acceptValue);
+					totalValue = round(totalValue / ((double)(imP.sizeX() * imP.sizeY())) * 10000);
+					acceptValue = round(acceptValue / ((double)(imBuffer.sizeX() * imBuffer.sizeY())) * 10000);
+					printf("Found Pointing.\n");
 
 					size_t resV, resH;
 					double ratio;
@@ -1327,7 +1341,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					drawLineX.resize(2, 0.0);
 					drawLineY.resize(2, 0.0);
 
-
+					printf("Drawing Image.\n");
 					plt::figure_size(resH, resV);
 					plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 0, 2, 1);
 					pltimshow(imP, 1, "");
@@ -1361,8 +1375,14 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 
 					plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
 					std::string pValue = std::to_string(pointing);
+					std::string mValue = std::to_string(maxValue);
+					std::string tValue = std::to_string((int)totalValue);
+					std::string aValue = std::to_string((int)acceptValue);
 					pValue = pValue.substr(0, 4);
 					plt::text((int)(0.775 * imP.sizeX()), (int)(0.975 * imP.sizeY()), pValue + std::string(" mrad"));
+					plt::text((int)(0.025 * imP.sizeX()), (int)(0.975 * imP.sizeY()), std::string("Max Px: ") + mValue + std::string("/10000"));
+					plt::text((int)(0.025 * imP.sizeX()), (int)(0.100 * imP.sizeY()), std::string("AVG ToT Signal: ") + tValue);
+					plt::text((int)(0.025 * imP.sizeX()), (int)(0.050 * imP.sizeY()), std::string("AVG Red Signal: ") + aValue);
 					if (flagP) {
 						if (flagB) {
 							plt::text((int)(0.800 * imP.sizeX()), (int)(0.925 * imP.sizeY()), std::string("Error P,B"));
@@ -1391,6 +1411,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
 					plt::draw();
 
+					printf("Saving Analysis.\n");
 					outputName = eSpec.analysisPath() + "/" + outputName + ".png";
 					plt::save(outputName);
 				}

@@ -899,6 +899,20 @@ void Contrast(double scale, std::vector<double>& input) {
     input[N - 1] = input[N - 2];
 }
 
+void Sum(imageBW& image, double& sum) {
+    int Nx = image.sizeX();
+    int Ny = image.sizeY();
+    int N = Nx * Ny;
+    double total_signal = 0.0;
+    #pragma omp parallel for reduction(+:total_signal)
+    for (int i = 0; i < N; i++) {
+        int indexY = i % Ny;
+        int indexX = (i - indexY) / Ny;
+        total_signal = total_signal + image.value(indexX, indexY);
+        }
+    sum = total_signal;
+}
+
 void Average(std::vector<double>& input, double& avg) {
     int N = (int)input.size();
     double avg_buffer = 0.0;

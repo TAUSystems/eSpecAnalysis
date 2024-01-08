@@ -122,6 +122,13 @@ public:
         }
         free(data);
         free(size);
+
+        data = (double**)malloc(sizeof(double*));
+        data[0] = (double*)malloc(sizeof(double));
+        data[0][0] = 0.0;
+        size = (size_t*)malloc(sizeof(size_t) * 2);
+        size[0] = 1;
+        size[1] = 1;
     }
 
     void definePixel(int indexX, int indexY, double value) {
@@ -384,37 +391,42 @@ void getOpParameters(std::vector<std::string>& settingsParameters, int& mode, do
 void scanNewFile(std::string path, std::vector<std::string>& refList, std::vector<int>& updateStatus) {
     std::vector<std::string> updateList;
     listDir(path, updateList);
-    size_t nRef, nUpdate;
-    nRef = refList.size();
-    nUpdate = updateList.size();
+    int nRef, nUpdate;
+    nRef = (int)refList.size();
+    nUpdate = (int)updateList.size();
     updateStatus.clear();
-    updateStatus.resize(nUpdate, 0);
+    
     if (nUpdate > nRef) {
-        for (size_t i = 0; i < nUpdate; i++) {
-            for (size_t j = 0; j < nRef; j++) {
-                if (updateList[i].find(refList[j]) == std::string::npos) {
-                    updateStatus[i] = 1;
-                    break;
+        updateStatus.resize(nUpdate, 1);
+        #pragma omp parallel for
+            for (int i = 0; i < nUpdate; i++) {
+                for (int j = 0; j < nRef; j++) {
+                    if (updateList[i].compare(refList[j]) == 0) {
+                        updateStatus[i] = 0;
+                        break;
+                    }
                 }
             }
-        }
         refList.clear();
         refList = updateList;
     }
-    else if (nUpdate < nRef) {
+    else {
+        updateStatus.resize(nUpdate, 0);
         refList.clear();
         refList = updateList;
     }
 }
 
-bool findFile(std::vector<std::string> list, std::string file, int &index) {
+bool findFile(std::vector<std::string> list, std::string file, std::string timeStamp, int &index) {
     bool output = false;
     int N = (int)list.size();
     for (int i = 0; i < N; i++) {
-        if (list[i].find(file) != std::string::npos) {
-            index = i;
-            output = true;
-            break;
+        if (list[N - 1 - i].find(file) != std::string::npos) {
+            if (list[N - 1 - i].find(timeStamp) != std::string::npos) {
+                index = N - 1 - i;
+                output = true;
+                break;
+            }
         }
     }
     return output;
