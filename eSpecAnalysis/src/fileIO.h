@@ -23,6 +23,10 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
+#include <thread>
+#include <filesystem>
+#include <dirent.h>
+
 template<int I>
 struct CvType {};
 template<>
@@ -248,7 +252,7 @@ std::string getDate() {
     std::tm timeInfo;
     char buffer[80];
     std::time(&timeRaw);
-    localtime_s(&timeInfo, &timeRaw);
+    // localtime_s(&timeInfo, &timeRaw);
     std::strftime(buffer, 80, "%Y%m%d", &timeInfo);
 
     std::string dateString(buffer);
@@ -289,7 +293,7 @@ void listDir(std::string& pathDir, std::vector<std::string>& list) {
             }
         }
     #else
-        DIR* dp = opendir(pathDir);
+        DIR* dp = opendir(pathDir.c_str());
         int dfd = dirfd(dp);
         struct dirent* dirp;
         while (readdir(dp) != NULL) {
