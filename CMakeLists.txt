@@ -21,6 +21,8 @@ include_directories (${OpenCV_INCLUDE_DIR})
 include_directories (${Python_INCLUDE_DIRS})
 include_directories ("/usr/local/include/python3.9")
 include_directories ("/usr/local/lib/python3.9/site-packages/numpy/core/include")
+# The matplotlibcpp.h file from the matplotlib-cpp repository should be put into 
+# <project_root>/eSpecAnalysis/include
 include_directories ("eSpecAnalysis/include")
 
 # Include sub-projects.
