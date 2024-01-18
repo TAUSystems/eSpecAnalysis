@@ -19,10 +19,9 @@ find_package (OpenMP REQUIRED)
 include_directories(${OpenMP_LIBRARY_DIR})
 include_directories (${OpenCV_INCLUDE_DIR})
 include_directories (${Python_INCLUDE_DIRS})
-include_directories ("C:/Program Files/Python39/include")
-include_directories ("C:/Users/Xing/AppData/Roaming/Python/Python39/site-packages/numpy/core/include")
-include_directories ("..//matplotlib-cpp-master")
+include_directories ("/usr/local/include/python3.9")
+include_directories ("/usr/local/lib/python3.9/site-packages/numpy/core/include")
+include_directories ("eSpecAnalysis/include")
 
 # Include sub-projects.
 add_subdirectory ("eSpecAnalysis")
-
