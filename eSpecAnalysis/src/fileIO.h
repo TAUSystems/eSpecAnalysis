@@ -27,6 +27,12 @@
 #include <filesystem>
 #include <dirent.h>
 
+#if _WIN32
+    char PATHSEP = '\\';
+#else
+    char PATHSEP = '/';
+#endif
+
 template<int I>
 struct CvType {};
 template<>
@@ -299,7 +305,7 @@ void listDir(std::string& pathDir, std::vector<std::string>& list) {
         while (readdir(dp) != NULL) {
             struct stat sb;
             fstatat(dfd, dirp->d_name, &sb, 0);
-            file = pathDir + "/";
+            file = pathDir + PATHSEP;
             file = file + dirp->d_name;
             isIMG = false;
             // file = entry.path().generic_string();
@@ -756,15 +762,15 @@ public:
                     screen[2][4] = std::stod(strValue.c_str());
                 }
             }
-        std::string dateString = getDate();
-        path[0] = rootPath + "\\" + dateString + "\\" + path[0];
-        path[1] = rootPath + "\\" + dateString + "\\" + path[1];
-        path[2] = rootPath + "\\" + dateString + "\\" + path[2];
-        analysis = rootPath + "\\" + dateString;
+
+        path[0] = rootPath + PATHSEP + path[0];
+        path[1] = rootPath + PATHSEP + path[1];
+        path[2] = rootPath + PATHSEP + path[2];
+        analysis = rootPath + PATHSEP;
 
         struct stat sb;
         if (stat(analysis.c_str(), &sb) == 0) {
-            analysis = analysis + "\\Analysis";
+            analysis = analysis + PATHSEP + "Analysis";
             std::filesystem::create_directory(analysis);
         }
         else {
@@ -829,7 +835,7 @@ public:
         threshold[3].resize(4, 0.0);
     }
     void loadCalibration(std::string& pathCalibration) {
-        std::string fileCalibration = pathCalibration + "/perspective.cal";
+        std::string fileCalibration = pathCalibration + PATHSEP + "perspective.cal";
         std::vector<std::string> calibration;
         readFile(fileCalibration, calibration);
 
