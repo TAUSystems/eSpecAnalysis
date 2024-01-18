@@ -302,7 +302,7 @@ void listDir(std::string& pathDir, std::vector<std::string>& list) {
         DIR* dp = opendir(pathDir.c_str());
         int dfd = dirfd(dp);
         struct dirent* dirp;
-        while (readdir(dp) != NULL) {
+        while ((dirp = readdir(dp)) != NULL) {
             struct stat sb;
             fstatat(dfd, dirp->d_name, &sb, 0);
             file = pathDir + PATHSEP;
