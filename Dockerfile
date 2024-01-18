@@ -39,5 +39,9 @@ RUN adduser \
     appuser
 USER appuser
 
+# Copy configuration files
+COPY config/settings.cfg /home/appuser
+COPY config/Calibration /home/appuser/Calibration
+
 # What the container should run when it is started.
 ENTRYPOINT [ "/bin/eSpecAnalysis" ]
