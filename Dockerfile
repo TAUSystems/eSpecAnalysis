@@ -7,7 +7,7 @@ FROM python:3.9-bookworm as base
 # final images
 RUN apt-get update
 RUN apt-get install -y libopencv-dev
-RUN pip install numpy
+RUN pip install numpy matplotlib
 
 # ## Create a stage for building/compiling the application.
 FROM base as build
