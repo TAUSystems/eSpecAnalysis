@@ -302,7 +302,7 @@ void listDir(std::string& pathDir, std::vector<std::string>& list) {
             file = pathDir + "/";
             file = file + dirp->d_name;
             isIMG = false;
-            file = entry.path().generic_string();
+            // file = entry.path().generic_string();
             if (file.find(".tiff") != std::string::npos ||
                 file.find(".tif") != std::string::npos ||
                 file.find(".Tiff") != std::string::npos ||
