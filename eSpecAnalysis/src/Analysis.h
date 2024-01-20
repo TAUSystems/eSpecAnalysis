@@ -1413,7 +1413,11 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 
 					printf("Saving Analysis.\n");
 					outputName = eSpec.analysisPath() + "/" + outputName + ".png";
-					plt::save(outputName);
+					// to prevent the process watching for the output file from 
+					// reading it prematurely, save it to xxx.png.part and rename 
+					// it
+					plt::save(outputName + ".part.png");
+					std::filesystem::rename(outputName + ".part.png", outputName);
 				}
 				else {
 					switch (fileCount) {
