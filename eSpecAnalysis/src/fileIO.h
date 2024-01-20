@@ -772,6 +772,9 @@ public:
         if (stat(analysis.c_str(), &sb) == 0) {
             analysis = analysis + PATHSEP + "Analysis";
             std::filesystem::create_directory(analysis);
+            std::filesystem::create_directory(path[0]);
+            std::filesystem::create_directory(path[1]);
+            std::filesystem::create_directory(path[2]);
         }
         else {
             std::cout << "\nData Path Not Found\n";
