@@ -1252,7 +1252,7 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 
 	size_t resV, resH;
 	double ratio;
-	resH = 2064;
+	resH = 2224;
 	double spX, spY;
 	spY = ((double)imA.sizeY() + (double)imB.sizeY());
 	spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
@@ -1335,11 +1335,12 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	plt::draw();
 
 	printf("Saving Analysis.\n");
-	outputName = eSpec.analysisPath() + "/" + outputName + ".png";
-	plt::save(outputName);
+	std::string outputHR = eSpec.analysisPath() + "/" + outputName + "-HR.png";
+	std::string outputLR = eSpec.analysisPath() + "/" + outputName + ".png";
+	plt::save(outputHR);
 	plt::close();
 	double scaling = 0.5;
-	resizeImage(scaling, outputName);
+	resizeImage(scaling, outputHR, outputLR);
 	printf("Analysis Saved.\n");
 }
 
