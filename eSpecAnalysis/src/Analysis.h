@@ -1329,7 +1329,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 
 					size_t resV, resH;
 					double ratio;
-					resH = 1900;
+					resH = 2224;
 					double spX, spY;
 					spY = ((double)imA.sizeY() + (double)imB.sizeY());
 					spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
@@ -1414,10 +1414,13 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					printf("Saving Analysis.\n");
 					outputName = eSpec.analysisPath() + "/" + outputName + ".png";
 					// to prevent the process watching for the output file from 
-					// reading it prematurely, save it to xxx.png.part and rename 
-					// it
+					// reading it prematurely, save it to xxx.png.part.png and rename 
+					// it ()
 					plt::save(outputName + ".part.png");
+					double scaling = 0.5;
+					resizeImage(scaling, outputName + ".part.png", outputName + ".part.png");
 					std::filesystem::rename(outputName + ".part.png", outputName);
+					printf("Analysis Saved.\n");
 				}
 				else {
 					switch (fileCount) {
@@ -1451,6 +1454,9 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 		i++;
 	}
 	plt::close();
+	double scaling = 0.5;
+	resizeImage(scaling, outputName);
+	printf("Analysis Saved.\n");
 }
 
 void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, int& screen, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
@@ -1529,9 +1535,9 @@ void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibrat
                 plt::draw();
             }
         }
-        plt::show(false);
-		plt::pause(rate);
-        //std::this_thread::sleep_for(std::chrono::milliseconds((long)rate));
+        //plt::show(false);
+		//plt::pause(rate);
+        std::this_thread::sleep_for(std::chrono::milliseconds((long)rate));
 		if (i > (int)round(timeout / rate)) {
 			loop = 0;
 		}
