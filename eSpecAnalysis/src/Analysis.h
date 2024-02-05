@@ -1151,7 +1151,7 @@ void calMode(spectrometer& eSpec, std::string& pathCalibration, std::vector<cv::
 	}
 }
 
-void loadFile(std::vector<std::string>& list, std::string& path, std::string& fileName, std::string& timeStamp, cv::Mat& H, std::vector<double>& viewRes, uint& fileCount, imageBW& output) {
+bool loadFile(std::vector<std::string>& list, std::string& path, std::string& fileName, std::string& timeStamp, cv::Mat& H, std::vector<double>& viewRes, imageBW& output) {
 	int fileLoopCount = 0;
 	bool fileFound = 0;
 	bool fileFindLoop = 1;
@@ -1181,7 +1181,10 @@ void loadFile(std::vector<std::string>& list, std::string& path, std::string& fi
 		perspectiveTransform(imBuffer, H, viewRes, output);
 		removeOutlier(output, 4.0);
 		medianFilter(output, 2);
-		fileCount = fileCount + 5;
+		return 1;
+	}
+	else {
+		return 0;
 	}
 }
 
@@ -1245,11 +1248,11 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	Sum(imBuffer, acceptValue);
 	totalValue = round(totalValue / ((double)(imP.sizeX() * imP.sizeY())) * 10000);
 	acceptValue = round(acceptValue / ((double)(imBuffer.sizeX() * imBuffer.sizeY())) * 10000);
-	printf("Found Pointing.\n");
+	printf("Found Electron Pointing.\n");
 
 	size_t resV, resH;
 	double ratio;
-	resH = 1900;
+	resH = 2064;
 	double spX, spY;
 	spY = ((double)imA.sizeY() + (double)imB.sizeY());
 	spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
@@ -1335,6 +1338,9 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	outputName = eSpec.analysisPath() + "/" + outputName + ".png";
 	plt::save(outputName);
 	plt::close();
+	double scaling = 0.5;
+	resizeImage(scaling, outputName);
+	printf("Analysis Saved.\n");
 }
 
 void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
@@ -1389,12 +1395,22 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 				timeStamp = timeStamp.substr(0, strStart - 3);
 				fileName = fileName.substr(strStart + 1, fileName.length() - strStart - 1);
 				
+				bool fileLoad;
+				fileLoad = loadFile(listB, pathB, fileName, timeStamp, H[screenB], viewResB, imB);
+				if (fileLoad) {
+					fileCount = fileCount + 5;
+				}
 
-				loadFile(listB, pathB, fileName, timeStamp, H[screenB], viewResB, fileCount, imB);
-				
-				loadFile(listP, pathP, fileName, timeStamp, H[screenP], viewResP, fileCount, imP);
+				fileLoad = loadFile(listP, pathP, fileName, timeStamp, H[screenP], viewResP, imP);
+				if (fileLoad) {
+					fileCount = fileCount + 3;
+				}
 
-				loadFile(listRef, pathA, fileName, timeStamp, H[screenA], viewResA, fileCount, imA);
+				fileLoad = loadFile(listRef, pathA, fileName, timeStamp, H[screenA], viewResA, imA);
+				if (fileLoad) {
+					fileCount = fileCount + 1;
+				}
+
 				/*
 				printf("Loading eScreen A Image.\n");
 				getImage(listRef[i], imBuffer);
@@ -1403,7 +1419,6 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 				medianFilter(imA, 2);
 				fileCount = fileCount + 1;
 				*/
-
 				if (fileCount == 9) {
 					drawPointingAnalysis(eSpec, pSpace, xRuler, yRuler, pxX, pxY, imP, imA, imB, outputName);
 				}
@@ -1433,6 +1448,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 		}
 		//plt::show(false);
 		//plt::pause(rate);
+		std::this_thread::sleep_for(std::chrono::milliseconds((long)(1000/rate)));
 		if (i > (int)round(timeout / rate)) {
 			loop = 0;
 		}

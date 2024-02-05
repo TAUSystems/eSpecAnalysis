@@ -544,6 +544,16 @@ void imgshow(imageBW image) {
     cv::waitKey(0);
 }
 
+void resizeImage(double& scaling, std::string& file) {
+    cv::Mat input = cv::imread(file);
+    cv::Mat output;
+    int width = (int)(round((double)input.size().width * scaling));
+    int height = (int)(round((double)input.size().height * scaling));
+    cv::resize(input, output, cv::Size(width, height), cv::INTER_CUBIC);
+    
+    cv::imwrite(file, output);
+}
+
 class spectrometer {
     std::vector<std::string> path;
     double** screen;
