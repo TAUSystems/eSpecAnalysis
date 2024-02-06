@@ -45,10 +45,6 @@ USER appuser
 
 # Create folder for input and output data
 WORKDIR /home/appuser
-RUN mkdir data && \
-    mkdir data/ePointing; \
-    mkdir data/eScreenA; \
-    mkdir data/eScreenB
 
 # Copy configuration files
 COPY config/settings.cfg /home/appuser
