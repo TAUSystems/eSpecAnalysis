@@ -1412,14 +1412,15 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					plt::draw();
 
 					printf("Saving Analysis.\n");
-					outputName = eSpec.analysisPath() + "/" + outputName + ".png";
+					std::string outputPath = eSpec.analysisPath() + "/" + outputName + ".png";
 					// to prevent the process watching for the output file from 
 					// reading it prematurely, save it to xxx.png.part.png and rename 
 					// it ()
-					plt::save(outputName + ".part.png");
+					std::string outputPartPath = outputPath + ".part.png";
+					plt::save(outputPartPath);
 					double scaling = 0.5;
-					resizeImage(scaling, outputName + ".part.png", outputName + ".part.png");
-					std::filesystem::rename(outputName + ".part.png", outputName);
+					resizeImage(scaling, outputPartPath, outputPartPath);
+					std::filesystem::rename(outputPartPath, outputPath);
 					printf("Analysis Saved.\n");
 				}
 				else {
@@ -1454,9 +1455,6 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 		i++;
 	}
 	plt::close();
-	double scaling = 0.5;
-	resizeImage(scaling, outputName);
-	printf("Analysis Saved.\n");
 }
 
 void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, int& screen, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
