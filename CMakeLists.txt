@@ -2,7 +2,7 @@
 # and include sub-projects here.
 #
 cmake_minimum_required (VERSION 3.8)
-
+# set (CMAKE_CXX_STANDARD 11)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
@@ -11,7 +11,7 @@ if (POLICY CMP0141)
 endif()
 
 project ("eSpecAnalysis")
-find_package (OpenCV REQUIRED)
+find_package (OpenCV REQUIRED core calib3d highgui imgproc features2d)
 find_package (PythonLibs REQUIRED)
 find_package (OpenMP REQUIRED)
 #find_package (Python3 REQUIRED COMPONENTS Interpreter NumPy)
