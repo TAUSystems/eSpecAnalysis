@@ -1151,41 +1151,45 @@ void calMode(spectrometer& eSpec, std::string& pathCalibration, std::vector<cv::
 	}
 }
 
-void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
+void loadFile(std::vector<std::string>& list, std::string& path, std::string& fileName, std::string& timeStamp, cv::Mat& H, std::vector<double>& viewRes, uint& fileCount, imageBW& output) {
+	int fileLoopCount = 0;
+	bool fileFound = 0;
+	bool fileFindLoop = 1;
+	int index = -1;
+	double loopWait = 250;
+
+	imageBW imBuffer;
+	while (fileFindLoop) {
+		listDir(path, list);
+		fileFound = findFile(list, fileName, timeStamp, index);
+		if (fileFound) {
+			fileFindLoop = 0;
+		}
+		else {
+			std::this_thread::sleep_for(std::chrono::milliseconds((long)loopWait));
+		}
+		if (fileLoopCount > 30) {
+			fileFindLoop = 0;
+			fileFound = 0;
+			std::cout << "Can not find file.\n";
+		}
+		fileLoopCount = fileLoopCount + 1;
+	}
+	if (fileFound) {
+		printf("Loading Image.\n");
+		getImage(list[index], imBuffer);
+		perspectiveTransform(imBuffer, H, viewRes, output);
+		removeOutlier(output, 4.0);
+		medianFilter(output, 2);
+		fileCount = fileCount + 5;
+	}
+}
+
+void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, imageBW& imP, imageBW& imA, imageBW& imB, std::string outputName) {
 	int screenA, screenB, screenP;
 	screenA = 1;
 	screenB = 2;
 	screenP = 0;
-	std::string pathA, pathB, pathP, fileName, outputName, timeStamp;
-	pathA = eSpec.screenPath(screenA);
-	pathB = eSpec.screenPath(screenB);
-	pathP = eSpec.screenPath(screenP);
-	std::vector<double> viewResA, viewResB, viewResP, lineBuffer, pxX, pxY;
-	viewResA = calibration.viewResolution(screenA);
-	viewResB = calibration.viewResolution(screenB);
-	viewResP = calibration.viewResolution(screenP);
-	int pathLength = (int)pathA.length();
-	std::vector<std::string> listRef, listUpdate, listB, listP;
-	listDir(pathA, listRef);
-	
-	double loopWait = 250;
-	bool fileFindLoop = 1;
-	int fileLoopCount = 0;
-	bool loop = 1;
-	bool flagP = 0;
-	bool flagB = 0;
-	bool fileFound = 0;
-	imageBW imBuffer, imA, imB, imP;
-
-	int N = (int)std::max(viewResP[0], viewResP[1]);
-	for (int i = 0; i < N; i++) {
-		if (i < viewResP[0]) {
-			pxX.push_back((double)i);
-		}
-		if (i < viewResP[1]) {
-			pxY.push_back((double)i);
-		}
-	}
 
 	std::vector<int> peak, peakBound;
 	std::vector<double> pointX, pointY;
@@ -1221,6 +1225,148 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 	boundboxY[3] = acceptanceBound[2];
 	boundboxX[4] = acceptanceBound[0];
 	boundboxY[4] = acceptanceBound[2];
+
+
+	printf("Loaded 3 Images.\n");
+	imageBW imBuffer;
+	int maxValue = 0;
+	bool flagP = 0;
+	bool flagB = 0;
+	double peakValue, peakValueB, totalValue, acceptValue;
+	imP.crop(acceptanceBound, imBuffer);
+	findSignalPeak(imBuffer, peakBound, peakValueB);
+	findSignalPeak(imP, peak, peakValue);
+	peakBound[0] = peakBound[0] + acceptanceBound[0];
+	peakBound[1] = peakBound[1] + acceptanceBound[2];
+	eval = (double)((double)imP.sizeY() - 1 - peakBound[1]);
+	FE1DInterp(pxY, pointY, eval, pointing);
+	maxValue = (int)round(peakValue * 10000);
+	Sum(imP, totalValue);
+	Sum(imBuffer, acceptValue);
+	totalValue = round(totalValue / ((double)(imP.sizeX() * imP.sizeY())) * 10000);
+	acceptValue = round(acceptValue / ((double)(imBuffer.sizeX() * imBuffer.sizeY())) * 10000);
+	printf("Found Pointing.\n");
+
+	size_t resV, resH;
+	double ratio;
+	resH = 1900;
+	double spX, spY;
+	spY = ((double)imA.sizeY() + (double)imB.sizeY());
+	spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
+	ratio = spY / (spX + spY);
+	ratio = ratio * resH - 7;
+	resV = (size_t)round(ratio);
+
+	std::vector<double> drawLineX, drawLineY;
+	drawLineX.resize(2, 0.0);
+	drawLineY.resize(2, 0.0);
+
+	printf("Drawing Image.\n");
+	plt::figure_size(resH, resV);
+	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 0, 2, 1);
+	pltimshow(imP, 1, "");
+
+
+	plt::plot(boundboxX, boundboxY, { {"color","r"} });
+
+	drawLineX[0] = 0;
+	drawLineX[1] = (int)imP.sizeX() - 1;
+	drawLineY[0] = (int)imP.sizeY() - 1 - peak[1];
+	drawLineY[1] = drawLineY[0];
+	plt::plot(drawLineX, drawLineY, { {"color","k"} });
+
+	drawLineX[0] = peak[0];
+	drawLineX[1] = drawLineX[0];
+	drawLineY[0] = 0;
+	drawLineY[1] = (int)imP.sizeY() - 1;
+	plt::plot(drawLineX, drawLineY, { {"color","k"} });
+
+	drawLineX[0] = 0;
+	drawLineX[1] = (int)imP.sizeX() - 1;
+	drawLineY[0] = (int)imP.sizeY() - 1 - peakBound[1];
+	drawLineY[1] = drawLineY[0];
+	plt::plot(drawLineX, drawLineY, { {"color","b"} });
+
+	drawLineX[0] = peakBound[0];
+	drawLineX[1] = drawLineX[0];
+	drawLineY[0] = 0;
+	drawLineY[1] = (int)imP.sizeY() - 1;
+	plt::plot(drawLineX, drawLineY, { {"color","b"} });
+
+	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
+	std::string pValue = std::to_string(pointing);
+	std::string mValue = std::to_string(maxValue);
+	std::string tValue = std::to_string((int)totalValue);
+	std::string aValue = std::to_string((int)acceptValue);
+	pValue = pValue.substr(0, 4);
+	plt::text((int)(0.775 * imP.sizeX()), (int)(0.975 * imP.sizeY()), pValue + std::string(" mrad"));
+	plt::text((int)(0.025 * imP.sizeX()), (int)(0.975 * imP.sizeY()), std::string("Max Px: ") + mValue + std::string("/10000"));
+	plt::text((int)(0.025 * imP.sizeX()), (int)(0.100 * imP.sizeY()), std::string("AVG ToT Signal: ") + tValue);
+	plt::text((int)(0.025 * imP.sizeX()), (int)(0.050 * imP.sizeY()), std::string("AVG Red Signal: ") + aValue);
+	if (flagP) {
+		if (flagB) {
+			plt::text((int)(0.800 * imP.sizeX()), (int)(0.925 * imP.sizeY()), std::string("Error P,B"));
+		}
+		else {
+			plt::text((int)(0.800 * imP.sizeX()), (int)(0.925 * imP.sizeY()), std::string("Error P"));
+		}
+	}
+	else {
+		if (flagB) {
+			plt::text((int)(0.800 * imP.sizeX()), (int)(0.925 * imP.sizeY()), std::string("Error B"));
+		}
+	}
+
+	drawAxis(1, eSpec, pSpace, screenP, xRuler[screenP], yRuler[screenP], pointing);
+
+	plt::axis("off");
+	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 1, 1, (int)(spX / spY));
+	pltimshow(imA, 1, "");
+	drawAxis(1, eSpec, pSpace, screenA, xRuler[screenA], yRuler[screenA], pointing);
+	plt::axis("off");
+	plt::subplot2grid(2, (int)((spY + spX) / spY), 1, 1, 1, (int)(spX / spY));
+	pltimshow(imB, 1, "");
+	drawAxis(1, eSpec, pSpace, screenB, xRuler[screenB], yRuler[screenB], pointing);
+	plt::axis("off");
+	plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
+	plt::draw();
+
+	printf("Saving Analysis.\n");
+	outputName = eSpec.analysisPath() + "/" + outputName + ".png";
+	plt::save(outputName);
+	plt::close();
+}
+
+void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
+	int screenA, screenB, screenP;
+	screenA = 1;
+	screenB = 2;
+	screenP = 0;
+	std::string pathA, pathB, pathP, fileName, outputName, timeStamp;
+	pathA = eSpec.screenPath(screenA);
+	pathB = eSpec.screenPath(screenB);
+	pathP = eSpec.screenPath(screenP);
+	std::vector<double> viewResA, viewResB, viewResP, lineBuffer, pxX, pxY;
+	viewResA = calibration.viewResolution(screenA);
+	viewResB = calibration.viewResolution(screenB);
+	viewResP = calibration.viewResolution(screenP);
+	int pathLength = (int)pathA.length();
+	std::vector<std::string> listRef, listUpdate, listB, listP;
+	listDir(pathA, listRef);
+	
+	bool loop = 1;
+	bool fileFound = 0;
+	imageBW imBuffer, imA, imB, imP;
+
+	int N = (int)std::max(viewResP[0], viewResP[1]);
+	for (int i = 0; i < N; i++) {
+		if (i < viewResP[0]) {
+			pxX.push_back((double)i);
+		}
+		if (i < viewResP[1]) {
+			pxY.push_back((double)i);
+		}
+	}
 	
 	int i = 0;
 	std::vector<int> updateStatus;
@@ -1230,11 +1376,9 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 			if (updateStatus[i] == 1) {
 				printf("Found New File.\n");
 				plt::close();
-				imBuffer.destroy();
 				imA.destroy();
 				imB.destroy(); 
 				imP.destroy();
-				int maxValue = 0;
 				uint fileCount = 0;
 				fileName = listRef[i].substr(pathLength + 1, listRef[i].length() - pathLength - 1);
 				outputName = fileName.substr(0, fileName.length() - 5);\
@@ -1245,183 +1389,23 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 				timeStamp = timeStamp.substr(0, strStart - 3);
 				fileName = fileName.substr(strStart + 1, fileName.length() - strStart - 1);
 				
-				fileLoopCount = 0;
-				fileFound = 0;
-				fileFindLoop = 1;
-				int index = -1;
-				while (fileFindLoop) {
-					listDir(pathB, listB);
-					fileFound = findFile(listB, fileName, timeStamp, index);
-					if (fileFound) {
-						fileFindLoop = 0;
-					}
-					else {
-						std::this_thread::sleep_for(std::chrono::milliseconds((long)loopWait));
-					}
-					if (fileLoopCount > 30) {
-						fileFindLoop = 0;
-						fileFound = 0;
-						std::cout << "Can not find eScreen B file.\n";
-					}
-					fileLoopCount = fileLoopCount + 1;
-				}
-				if (fileFound) {
-					printf("Loading eScreen B Image.\n");
-					getImage(listB[index], imBuffer);
-					perspectiveTransform(imBuffer, H[screenB], viewResB, imB);
-					removeOutlier(imB, 4.0);
-					medianFilter(imB, 2);
-					fileCount = fileCount + 5;
-				}
 
-				fileLoopCount = 0;
-				fileFound = 0;
-				fileFindLoop = 1;
-				index = -1;
-				while (fileFindLoop) {
-					listDir(pathP, listP);
-					fileFound = findFile(listP, fileName, timeStamp, index);
-					if (fileFound) {
-						fileFindLoop = 0;
-					}
-					else{
-						std::this_thread::sleep_for(std::chrono::milliseconds((long)loopWait));
-					}
-					if (fileLoopCount > 30) {
-						fileFindLoop = 0;
-						fileFound = 0;
-						std::cout << "Can not find Pointing file.\n";
-					}
-					fileLoopCount = fileLoopCount + 1;
-				}
-				if (fileFound) {
-					printf("Loading Pointing Image.\n");
-					getImage(listP[index], imBuffer);
-					perspectiveTransform(imBuffer, H[screenP], viewResP, imP);
-					removeOutlier(imP, 4.0);
-					medianFilter(imP, 2);
-					fileCount = fileCount + 3;
-				}
+				loadFile(listB, pathB, fileName, timeStamp, H[screenB], viewResB, fileCount, imB);
+				
+				loadFile(listP, pathP, fileName, timeStamp, H[screenP], viewResP, fileCount, imP);
 
+				loadFile(listRef, pathA, fileName, timeStamp, H[screenA], viewResA, fileCount, imA);
+				/*
 				printf("Loading eScreen A Image.\n");
 				getImage(listRef[i], imBuffer);
 				perspectiveTransform(imBuffer, H[screenA], viewResA, imA);
 				removeOutlier(imA, 4.0);
 				medianFilter(imA, 2);
 				fileCount = fileCount + 1;
+				*/
 
 				if (fileCount == 9) {
-					printf("Loaded 3 Images.\n");
-					double peakValue, peakValueB, totalValue, acceptValue;
-					imP.crop(acceptanceBound, imBuffer);
-					findSignalPeak(imBuffer, peakBound, peakValueB);
-					findSignalPeak(imP, peak, peakValue);
-					peakBound[0] = peakBound[0] + acceptanceBound[0];
-					peakBound[1] = peakBound[1] + acceptanceBound[2];
-					eval = (double)((double)imP.sizeY() - 1 - peakBound[1]);
-					FE1DInterp(pxY, pointY, eval, pointing);
-					maxValue = (int)round(peakValue * 10000);
-					Sum(imP, totalValue);
-					Sum(imBuffer, acceptValue);
-					totalValue = round(totalValue / ((double)(imP.sizeX() * imP.sizeY())) * 10000);
-					acceptValue = round(acceptValue / ((double)(imBuffer.sizeX() * imBuffer.sizeY())) * 10000);
-					printf("Found Pointing.\n");
-
-					size_t resV, resH;
-					double ratio;
-					resH = 2224;
-					double spX, spY;
-					spY = ((double)imA.sizeY() + (double)imB.sizeY());
-					spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
-					ratio = spY / (spX + spY);
-					ratio = ratio * resH - 7;
-					resV = (size_t)round(ratio);
-
-					std::vector<double> drawLineX, drawLineY;
-					drawLineX.resize(2, 0.0);
-					drawLineY.resize(2, 0.0);
-
-					printf("Drawing Image.\n");
-					plt::figure_size(resH, resV);
-					plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 0, 2, 1);
-					pltimshow(imP, 1, "");
-
-
-					plt::plot(boundboxX, boundboxY, { {"color","r"} });
-
-					drawLineX[0] = 0;
-					drawLineX[1] = (int)imP.sizeX() - 1;
-					drawLineY[0] = (int)imP.sizeY() - 1 - peak[1];
-					drawLineY[1] = drawLineY[0];
-					plt::plot(drawLineX, drawLineY, { {"color","k"} });
-
-					drawLineX[0] = peak[0];
-					drawLineX[1] = drawLineX[0];
-					drawLineY[0] = 0;
-					drawLineY[1] = (int)imP.sizeY() - 1;
-					plt::plot(drawLineX, drawLineY, { {"color","k"} });
-
-					drawLineX[0] = 0;
-					drawLineX[1] = (int)imP.sizeX() - 1;
-					drawLineY[0] = (int)imP.sizeY() - 1 - peakBound[1];
-					drawLineY[1] = drawLineY[0];
-					plt::plot(drawLineX, drawLineY, { {"color","b"} });
-
-					drawLineX[0] = peakBound[0];
-					drawLineX[1] = drawLineX[0];
-					drawLineY[0] = 0;
-					drawLineY[1] = (int)imP.sizeY() - 1;
-					plt::plot(drawLineX, drawLineY, { {"color","b"} });
-
-					plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
-					std::string pValue = std::to_string(pointing);
-					std::string mValue = std::to_string(maxValue);
-					std::string tValue = std::to_string((int)totalValue);
-					std::string aValue = std::to_string((int)acceptValue);
-					pValue = pValue.substr(0, 4);
-					plt::text((int)(0.775 * imP.sizeX()), (int)(0.975 * imP.sizeY()), pValue + std::string(" mrad"));
-					plt::text((int)(0.025 * imP.sizeX()), (int)(0.975 * imP.sizeY()), std::string("Max Px: ") + mValue + std::string("/10000"));
-					plt::text((int)(0.025 * imP.sizeX()), (int)(0.100 * imP.sizeY()), std::string("AVG ToT Signal: ") + tValue);
-					plt::text((int)(0.025 * imP.sizeX()), (int)(0.050 * imP.sizeY()), std::string("AVG Red Signal: ") + aValue);
-					if (flagP) {
-						if (flagB) {
-							plt::text((int)(0.800 * imP.sizeX()), (int)(0.925 * imP.sizeY()), std::string("Error P,B"));
-						}
-						else {
-							plt::text((int)(0.800 * imP.sizeX()), (int)(0.925 * imP.sizeY()), std::string("Error P"));
-						}
-					}
-					else {
-						if (flagB) {
-							plt::text((int)(0.800 * imP.sizeX()), (int)(0.925 * imP.sizeY()), std::string("Error B"));
-						}
-					}
-
-					drawAxis(1, eSpec, pSpace, screenP, xRuler[screenP], yRuler[screenP], pointing);
-
-					plt::axis("off");
-					plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 1, 1, (int)(spX / spY));
-					pltimshow(imA, 1, "");
-					drawAxis(1, eSpec, pSpace, screenA, xRuler[screenA], yRuler[screenA], pointing);
-					plt::axis("off");
-					plt::subplot2grid(2, (int)((spY + spX) / spY), 1, 1, 1, (int)(spX / spY));
-					pltimshow(imB, 1, "");
-					drawAxis(1, eSpec, pSpace, screenB, xRuler[screenB], yRuler[screenB], pointing);
-					plt::axis("off");
-					plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
-					plt::draw();
-
-					printf("Saving Analysis.\n");
-					std::string outputPath = eSpec.analysisPath() + "/" + outputName + ".png";
-					// to prevent the process watching for the output file from 
-					// reading it prematurely, save it to xxx.png.part.png and rename 
-					// it ()
-					std::string outputPartPath = outputPath + ".part.png";
-					plt::save(outputPartPath);
-					double scaling = 0.5;
-					resizeImage(scaling, outputPartPath, outputPartPath);
-					std::filesystem::rename(outputPartPath, outputPath);
-					printf("Analysis Saved.\n");
+					drawPointingAnalysis(eSpec, pSpace, xRuler, yRuler, pxX, pxY, imP, imA, imB, outputName);
 				}
 				else {
 					switch (fileCount) {
@@ -1447,8 +1431,8 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 				}
 			}
 		}
-		plt::show(false);
-		plt::pause(rate);
+		//plt::show(false);
+		//plt::pause(rate);
 		if (i > (int)round(timeout / rate)) {
 			loop = 0;
 		}

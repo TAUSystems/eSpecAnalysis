@@ -406,25 +406,18 @@ void scanNewFile(std::string path, std::vector<std::string>& refList, std::vecto
     nUpdate = (int)updateList.size();
     updateStatus.clear();
     
-    if (nUpdate > nRef) {
-        updateStatus.resize(nUpdate, 1);
-        #pragma omp parallel for
-            for (int i = 0; i < nUpdate; i++) {
-                for (int j = 0; j < nRef; j++) {
-                    if (updateList[i].compare(refList[j]) == 0) {
-                        updateStatus[i] = 0;
-                        break;
-                    }
+    updateStatus.resize(nUpdate, 1);
+    #pragma omp parallel for
+        for (int i = 0; i < nUpdate; i++) {
+            for (int j = 0; j < nRef; j++) {
+                if (updateList[i].compare(refList[j]) == 0) {
+                    updateStatus[i] = 0;
+                    break;
                 }
             }
-        refList.clear();
-        refList = updateList;
-    }
-    else {
-        updateStatus.resize(nUpdate, 0);
-        refList.clear();
-        refList = updateList;
-    }
+        }
+    refList.clear();
+    refList = updateList;
 }
 
 bool findFile(std::vector<std::string> list, std::string file, std::string timeStamp, int &index) {
