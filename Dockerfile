@@ -5,13 +5,13 @@ FROM python:3.9-slim-bookworm as base
 
 # Install libopencv-dev and numpy in the base, as it is needed in the build and 
 # final images
-RUN apt-get update
+RUN apt update
 RUN pip install numpy matplotlib
 
 # ## Create a stage for building/compiling the application.
 FROM base as build
 
-RUN apt-get install -y libopencv-dev cmake g++
+RUN apt install -y libopencv-dev cmake g++
 
 COPY . /opt
 WORKDIR /opt
@@ -23,7 +23,7 @@ RUN mkdir build && cd build; \
 FROM base AS final
 
 # only install the libraries that are linked against
-RUN apt-get install -y libopencv-core-dev libopencv-calib3d-dev \
+RUN apt install -y libopencv-core-dev libopencv-calib3d-dev \
                        libopencv-highgui-dev libopencv-imgproc-dev \
                        libopencv-features2d-dev
 
