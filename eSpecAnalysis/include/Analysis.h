@@ -993,7 +993,6 @@ void loadFile_old(std::vector<std::string>& list, std::string& path, std::string
 	}
 }
 
-void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, imageBW& imP, imageBW& imA, imageBW& imB, std::string outputName) {
 void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, imageBW& output) {
 	
 	imageBW imBuffer;
@@ -1005,6 +1004,12 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
 
 }
 
+
+
+void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, 
+						  std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, 
+						  imageBW& imP, imageBW& imA, imageBW& imB, std::string filepath_spectrum
+						 ) {
 	int screenA, screenB, screenP;
 	screenA = 1;
 	screenB = 2;
@@ -1151,12 +1156,12 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
 	plt::draw();
 
 	printf("Saving Analysis.\n");
-	outputName = eSpec.analysisPath() + "/" + outputName + ".png";
-	plt::save(outputName);
+	// outputName = eSpec.analysisPath() + "/" + outputName + ".png";
+	plt::save(filepath_spectrum);
 	plt::close();
 }
 
-void pointingMode(std::string filename, 
+void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum,
 				  double& rate, double& timeout, 
 				  spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, 
 				  std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler
@@ -1194,21 +1199,14 @@ void pointingMode(std::string filename,
 	imP.destroy();
 	uint fileCount = 0;
 
-	outputName = filename.substr(0, filename.length() - 5);
-	int strStart = filename.find("-");
-	filename = filename.substr(strStart + 1, filename.length() - strStart - 1);
-	timeStamp = filename;
-	strStart = filename.find("-");
-	timeStamp = timeStamp.substr(0, strStart - 3);
-	filename = filename.substr(strStart + 1, filename.length() - strStart - 1);
-	
+	loadFile(filepath_eScreenA,  H[screenA], viewResA, imA);
+	loadFile(filepath_eScreenB,  H[screenB], viewResB, imB);
+	loadFile(filepath_ePointing, H[screenP], viewResP, imP);
 
-	loadFile(listB, pathB, filename, timeStamp, H[screenB], viewResB, fileCount, imB);
-	loadFile(listP, pathP, filename, timeStamp, H[screenP], viewResP, fileCount, imP);
-	loadFile(listRef, pathA, filename, timeStamp, H[screenA], viewResA, fileCount, imA);
+	fileCount = 15;
 
-	if (fileCount == 9) {
-		drawPointingAnalysis(eSpec, pSpace, xRuler, yRuler, pxX, pxY, imP, imA, imB, outputName);
+	if (fileCount == 15) {
+		drawPointingAnalysis(eSpec, pSpace, xRuler, yRuler, pxX, pxY, imP, imA, imB, filepath_spectrum);
 	}
 	else {
 		switch (fileCount) {

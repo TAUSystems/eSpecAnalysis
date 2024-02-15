@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-void analyze_espec_images(std::string filename); 
+int analyze_espec_images(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum); 
 
 #ifdef __cplusplus
 }
