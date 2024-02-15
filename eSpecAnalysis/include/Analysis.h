@@ -959,200 +959,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 	}
 }
 
-void calMode(spectrometer& eSpec, std::string& pathCalibration, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
-	std::string listPath;
-	std::vector<std::string> listFile;
-	//listPath = "C:\\Users\\Xing\\Downloads\\Wakefield\\20230811\\pPointing";
-	//std::vector<std::string> listPPointing = fileList(listPath);
-	bool loadError = 0;
-
-	std::vector<std::vector<int>> winRes;
-	std::vector<std::vector<double>> zP;
-	std::vector<int> buffer;
-	buffer.resize(2, 0);
-	H.clear();
-	H.resize(3);
-	xRuler.clear();
-	xRuler.resize(3);
-	yRuler.clear();
-	yRuler.resize(3);
-	winRes.clear();
-	winRes.resize(3);
-	zP.clear();
-	zP.resize(3);
-
-	imageBW imTeP, imTeSA, imTeSB;
-	int mode = 1;
-	screenCalibration calibration;
-	int screen = 0;
-	bool loop = 1;
-	std::cout << "\nCalibration For Pointing Screen\n";
-	while (loop) {
-		listPath.clear();
-		listFile.clear();
-		listPath = eSpec.screenPath(screen);
-		listDir(listPath, listFile);
-		std::string refFile;
-		findRef(listFile, refFile);
-		if (refFile.find("-1NoRef") == std::string::npos) {
-			calibration.loadCalibration(pathCalibration);
-			screenCal(mode, screen, eSpec, calibration, H[0], xRuler[0], yRuler[0]);
-			std::vector<double> viewRes = calibration.viewResolution(screen);
-			imageBW image;
-			getImage(refFile, image);
-			perspectiveTransform(image, H[0], viewRes, imTeP);
-			findZero(screen, imTeP, xRuler[0], yRuler[0], zP[0]);
-
-			buffer[0] = imTeP.sizeX();
-			buffer[1] = imTeP.sizeY();
-			winRes[0] = buffer;
-			loadError = 0;
-		}
-		else {
-			std::cout << "\nNo Reference Found at: " << eSpec.screenPath(screen) << "\n";
-			loadError = 1;
-		}
-
-		std::cout << "\nDo you want to rerun the calibration (Y / N) ?\n";
-		std::string userInput;
-		/*
-		double ratio = (double)imTransform.sizeX() / (double)imTransform.sizeY();
-		int resV = 720;
-		int resH = (int)(ratio * resV);
-		plt::figure_size(resH, resV);
-		pltimshow(imTransform, 0, "");
-		drawAxis(0, eSpec, screen, resXeP, resYeP);
-		plt::title("ePointing Screen");
-		plt::axis("off");
-		plt::show();
-		*/
-		std::cin >> userInput;
-		if (userInput.at(0) == 'y' || userInput.at(0) == 'Y' || userInput.at(0) == '1') {
-			loop = 1;
-		}
-		else {
-			loop = 0;
-		}
-	}
-	screen = 1;
-	loop = 1;
-	if (loadError == 0) {
-		std::cout << "\nCalibration For e Energy Screen A\n";
-		while (loop) {
-			listPath.clear();
-			listFile.clear();
-			listPath = eSpec.screenPath(screen);
-			listDir(listPath, listFile);
-			std::string refFile;
-			findRef(listFile, refFile);
-			if (refFile.find("-1NoRef") == std::string::npos) {
-				calibration.loadCalibration(pathCalibration);
-				screenCal(mode, screen, eSpec, calibration, H[1], xRuler[1], yRuler[1]);
-				std::vector<double> viewRes = calibration.viewResolution(screen);
-				imageBW image;
-				getImage(refFile, image);
-				perspectiveTransform(image, H[1], viewRes, imTeSA);
-				findZero(screen, imTeSA, xRuler[1], yRuler[1], zP[1]);
-
-				buffer[0] = imTeSA.sizeX();
-				buffer[1] = imTeSA.sizeY();
-				winRes[1] = buffer;
-				loadError = 0;
-			}
-			else {
-				std::cout << "\nNo Reference Found at: " << eSpec.screenPath(screen) << "\n";
-				loadError = 1;
-			}
-
-			std::cout << "\nDo you want to rerun the calibration (Y / N) ?\n";
-			std::string userInput;
-			/*
-			double ratio = (double)imTransform.sizeX() / (double)imTransform.sizeY();
-			int resV = 720;
-			int resH = (int)(ratio * resV);
-			plt::figure_size(resH, resV);
-			pltimshow(imTransform, 0, "");
-			drawAxis(0, eSpec, screen, resXeSA, resYeSA);
-			plt::title("eSpec Sceen A");
-			plt::axis("off");
-			plt::show();
-			*/
-			std::cin >> userInput;
-			if (userInput.at(0) == 'y' || userInput.at(0) == 'Y' || userInput.at(0) == '1') {
-				loop = 1;
-			}
-			else {
-				loop = 0;
-			}
-		}
-	}
-	screen = 2;
-	loop = 1;
-	if (loadError == 0) {
-		std::cout << "\nCalibration For e Energy Screen B\n";
-		while (loop) {
-			listPath.clear();
-			listFile.clear();
-			listPath = eSpec.screenPath(screen);
-			listDir(listPath, listFile);
-			std::string refFile;
-			findRef(listFile, refFile);
-			if (refFile.find("-1NoRef") == std::string::npos) {
-				calibration.loadCalibration(pathCalibration);
-				screenCal(mode, screen, eSpec, calibration, H[2], xRuler[2], yRuler[2]);
-				std::vector<double> viewRes = calibration.viewResolution(screen);
-				imageBW image;
-				getImage(refFile, image);
-				perspectiveTransform(image, H[2], viewRes, imTeSB);
-				findZero(screen, imTeSB, xRuler[2], yRuler[2], zP[2]);
-
-				buffer[0] = imTeSB.sizeX();
-				buffer[1] = imTeSB.sizeY();
-				winRes[2] = buffer;
-				loadError = 0;
-			}
-			else {
-				std::cout << "\nNo Reference Found at: " << eSpec.screenPath(screen) << "\n";
-				loadError = 1;
-			}
-
-			std::cout << "\nDo you want to rerun the calibration (Y / N) ?\n";
-			std::string userInput;
-			/*
-			double ratio = (double)imTransform.sizeX() / (double)imTransform.sizeY();
-			int resV = 720;
-			int resH = (int)(ratio * resV);
-			plt::figure_size(resH, resV);
-			pltimshow(imTransform, 0, "");
-			drawAxis(0, eSpec, screen, resXeSB, resYeSB);
-			plt::title("eSpec Sceen B");
-			plt::axis("off");
-			plt::show();
-			*/
-			std::cin >> userInput;
-			if (userInput.at(0) == 'y' || userInput.at(0) == 'Y' || userInput.at(0) == '1') {
-				loop = 1;
-			}
-			else {
-				loop = 0;
-			}
-		}
-
-		writeCalibration(pathCalibration, winRes, H, xRuler, yRuler, zP);
-
-		screen = 0;
-		pixelAxis(screen, winRes[0][0], winRes[0][1], xRuler[0], yRuler[0], zP[0]);
-		screen = 1;
-		pixelAxis(screen, winRes[1][0], winRes[1][1], xRuler[1], yRuler[1], zP[1]);
-		screen = 2;
-		pixelAxis(screen, winRes[2][0], winRes[2][1], xRuler[2], yRuler[2], zP[2]);
-	}
-	else {
-		std::cout << "\nCalibration Failed Due To Missing Files.\n";
-	}
-}
-
-void loadFile(std::vector<std::string>& list, std::string& path, std::string& filename, std::string& timeStamp, cv::Mat& H, std::vector<double>& viewRes, uint& fileCount, imageBW& output) {
+void loadFile_old(std::vector<std::string>& list, std::string& path, std::string& filename, std::string& timeStamp, cv::Mat& H, std::vector<double>& viewRes, uint& fileCount, imageBW& output) {
 	int fileLoopCount = 0;
 	bool fileFound = 0;
 	bool fileFindLoop = 1;
@@ -1187,6 +994,17 @@ void loadFile(std::vector<std::string>& list, std::string& path, std::string& fi
 }
 
 void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, imageBW& imP, imageBW& imA, imageBW& imB, std::string outputName) {
+void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, imageBW& output) {
+	
+	imageBW imBuffer;
+
+	getImage(filepath, imBuffer);
+	perspectiveTransform(imBuffer, H, viewRes, output);
+	removeOutlier(output, 4.0);
+	medianFilter(output, 2);
+
+}
+
 	int screenA, screenB, screenP;
 	screenA = 1;
 	screenB = 2;

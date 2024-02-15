@@ -773,17 +773,17 @@ public:
         path[2] = rootPath + PATHSEP + path[2];
         analysis = rootPath + PATHSEP;
 
-        struct stat sb;
-        if (stat(analysis.c_str(), &sb) == 0) {
-            analysis = analysis + PATHSEP + "Analysis";
-            std::filesystem::create_directory(analysis);
-            std::filesystem::create_directory(path[0]);
-            std::filesystem::create_directory(path[1]);
-            std::filesystem::create_directory(path[2]);
-        }
-        else {
-            std::cout << "\nData Path Not Found\n";
-        }
+        // struct stat sb;
+        // if (stat(analysis.c_str(), &sb) == 0) {
+        //     analysis = analysis + PATHSEP + "Analysis";
+        //     std::filesystem::create_directory(analysis);
+        //     std::filesystem::create_directory(path[0]);
+        //     std::filesystem::create_directory(path[1]);
+        //     std::filesystem::create_directory(path[2]);
+        // }
+        // else {
+        //     std::cout << "\nData Path Not Found\n";
+        // }
     }
 
     std::string screenPath(int indexScreen) {
