@@ -3,7 +3,8 @@
 #
 
 # Add source to this project's executable.
-add_executable (eSpecAnalysis "src/main.cpp" )
+# add_executable (eSpecAnalysis "src/main.cpp" )
+add_library(eSpecAnalysis SHARED "src/main.cpp" )
 
 target_link_libraries (eSpecAnalysis ${OpenCV_LIBS})
 target_link_libraries (eSpecAnalysis ${PYTHON_LIBRARIES})
