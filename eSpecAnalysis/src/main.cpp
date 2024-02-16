@@ -3,7 +3,10 @@
 #include "Analysis.h"
 
 
-void analyze_espec_images(std::string filename) {
+int analyze_espec_images(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum) {
+
+    printf("Starting analyze_espec_images()\n");
+
     int threadCount = omp_get_max_threads();
     omp_set_num_threads(threadCount);
 
@@ -31,11 +34,15 @@ void analyze_espec_images(std::string filename) {
         case 1:
             screen = 1;
             // std::cout << "\nAnalysis with Pointing Screen\n";
-            if (stat(eSpec.screenPath(screen).c_str(), &sb) == 0) {
+            printf("In case 1\n");
+            if (true || (stat(eSpec.screenPath(screen).c_str(), &sb) == 0)) {
                 readCalibration(pathCalibration, H, xRuler, yRuler);
                 paramSpace pSpace;
                 pSpace.loadMap(pathCalibration);
-                pointingMode(filename, rate, timeout, eSpec, calibration, pSpace, H, xRuler, yRuler);
+                printf("calling pointingMode\n");
+                pointingMode(filepath_eScreenA, filepath_eScreenB, filepath_ePointing, filepath_spectrum, 
+                             rate, timeout, eSpec, calibration, pSpace, H, xRuler, yRuler
+                            );
             }
             else {
                 std::cout << "\nData Path Not Found\n";
@@ -48,4 +55,13 @@ void analyze_espec_images(std::string filename) {
     }
 
 	return 0;
+}
+
+
+int main( void ) {
+    analyze_espec_images("/home/reinier/data/eSpecAnalysis_test_data/shot-10192023102619-0-eScreenA.tiff",
+                         "/home/reinier/data/eSpecAnalysis_test_data/shot-10192023102619-0-eScreenB.tiff",
+                         "/home/reinier/data/eSpecAnalysis_test_data/shot-10192023102619-0-ePointing.tiff",
+                         "/home/reinier/data/eSpecAnalysis_test_data/shot-10192023102619-0-spectrum.png"
+    );
 }
