@@ -5,14 +5,12 @@
 
 int analyze_espec_images(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum) {
 
-    printf("Starting analyze_espec_images()\n");
-
     int threadCount = omp_get_max_threads();
     omp_set_num_threads(threadCount);
 
-	std::string pathRoot = getPath();
-	std::string pathSettings = pathRoot + "/settings.cfg";
-	std::string pathCalibration = pathRoot + "/Calibration";
+    const std::filesystem::path configPath = getConfigPath();
+    std::string pathSettings = (configPath / "settings.cfg").string();
+    std::string pathCalibration = (configPath / "Calibration").string();
 	std::vector<std::string> settingsFile;
 	std::vector<cv::Mat> H;
 	std::vector<std::vector<double>> xRuler, yRuler;

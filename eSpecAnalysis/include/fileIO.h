@@ -25,6 +25,7 @@
 
 #include <thread>
 #include <filesystem>
+#include <cstdlib>
 #include <dirent.h>
 
 #if _WIN32
@@ -265,17 +266,46 @@ std::string getDate() {
     return dateString;
 }
 
-std::string getPath() {
-    std::string output;
-    #ifdef _WIN32
-        std::filesystem::path buffer = std::filesystem::current_path();
-        output = buffer.string();
-    #else
-        char buffer[1024];
-        getcwd(buffer, sizeof(buffer));
-        output = buffer;
-    #endif
-    return output;
+std::filesystem::path getConfigPath() {
+    /* Get path to folder containing settings.cfg and Configuration
+
+    Returns path specified in OS environment by ESPECANALYSIS_CONFIG_FOLDER_PATH,
+    otherwise <current_working_directory>/config
+    */
+
+    // get config path from OS environment
+    printf("inside getConfigPath()\n");
+    char* configPathEnv = std::getenv("ESPECANALYSIS_CONFIG_FOLDER_PATH");
+    printf("got configPathEnv: %s\n", configPathEnv);
+
+    std::filesystem::path configPath;
+    if (configPathEnv) {
+        // if env variable exists, return it in path form
+        printf("Got configPath from env: ESPECANALYSIS_CONFIG_FOLDER_PATH\n");
+        configPath = std::filesystem::path(configPathEnv);
+        return configPath;
+    
+    } else {
+        // otherwise get current working directory, and append 'config'
+        printf("Env var ESPECANALYSIS_CONFIG_FOLDER_PATH not set. Looking for <cwd>/config\n");
+        std::filesystem::path cwd;
+        #ifdef _WIN32
+            cwd = std::filesystem::current_path();
+        #else
+            char buffer[1024];
+            getcwd(buffer, sizeof(buffer));
+            cwd = std::filesystem::path(buffer);
+
+        #endif
+        configPath = cwd / "config";
+
+        if (std::filesystem::exists(configPath)) {
+            return configPath;
+        } else {
+            printf("%s does not exist. Set environment variable ESPECANALYSIS_CONFIG_FOLDER_PATH to folder containing settings.cfg and Calibration\n", configPath.string().c_str());
+            exit(0);
+        }
+    }
 }
 
 void listDir(std::string& pathDir, std::vector<std::string>& list) {
