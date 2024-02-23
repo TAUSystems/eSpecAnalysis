@@ -1171,15 +1171,10 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 	screenA = 1;
 	screenB = 2;
 	screenP = 0;
-	std::string pathA, pathB, pathP, outputName, timeStamp;
-	pathA = eSpec.screenPath(screenA);
-	pathB = eSpec.screenPath(screenB);
-	pathP = eSpec.screenPath(screenP);
 	std::vector<double> viewResA, viewResB, viewResP, lineBuffer, pxX, pxY;
 	viewResA = calibration.viewResolution(screenA);
 	viewResB = calibration.viewResolution(screenB);
 	viewResP = calibration.viewResolution(screenP);
-	int pathLength = (int)pathA.length();
 	bool fileFound = 0;
 	imageBW imBuffer, imA, imB, imP;
 

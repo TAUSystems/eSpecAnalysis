@@ -33,12 +33,10 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
         case 1:
             screen = 1;
             // std::cout << "\nAnalysis with Pointing Screen\n";
-            printf("In case 1\n");
             if (true || (stat(eSpec.screenPath(screen).c_str(), &sb) == 0)) {
                 readCalibration(pathCalibration, H, xRuler, yRuler);
                 paramSpace pSpace;
                 pSpace.loadMap(pathCalibration);
-                printf("calling pointingMode\n");
                 pointingMode(filepath_eScreenA, filepath_eScreenB, filepath_ePointing, filepath_spectrum, 
                              rate, timeout, eSpec, calibration, pSpace, H, xRuler, yRuler
                             );
@@ -58,8 +56,6 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
 
 
 int main( int argc, char* argv[] ) {
-    printf("in main()\n");
-
     if (argc < 5) { 
         printf("Not enough arguments. Usage: \n  eSpecAnalysis low-energy-image-filename high-energy-image-filename pointing-image-filename spectrum-output-filename\n");
         return 1;
