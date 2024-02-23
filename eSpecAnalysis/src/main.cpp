@@ -3,7 +3,8 @@
 #include "Analysis.h"
 
 
-int analyze_espec_images(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum) {
+int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eScreenB, const char* filepath_ePointing, const char* filepath_spectrum) {
+    printf("%s\n", filepath_eScreenA);
 
     int threadCount = omp_get_max_threads();
     omp_set_num_threads(threadCount);
@@ -56,10 +57,13 @@ int analyze_espec_images(std::string filepath_eScreenA, std::string filepath_eSc
 }
 
 
-int main( void ) {
-    analyze_espec_images("/home/reinier/data/eSpecAnalysis_test_data/shot-10192023102619-0-eScreenA.tiff",
-                         "/home/reinier/data/eSpecAnalysis_test_data/shot-10192023102619-0-eScreenB.tiff",
-                         "/home/reinier/data/eSpecAnalysis_test_data/shot-10192023102619-0-ePointing.tiff",
-                         "/home/reinier/data/eSpecAnalysis_test_data/shot-10192023102619-0-spectrum.png"
-    );
+int main( int argc, char* argv[] ) {
+    printf("in main()\n");
+
+    if (argc < 5) { 
+        printf("Not enough arguments. Usage: \n  eSpecAnalysis low-energy-image-filename high-energy-image-filename pointing-image-filename spectrum-output-filename\n");
+        return 1;
+    }
+
+    return analyze_espec_images(argv[1], argv[2], argv[3], argv[4]);
 }
