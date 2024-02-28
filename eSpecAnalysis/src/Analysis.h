@@ -6,201 +6,156 @@
 #include "Calibration.h"
 
 void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
-	int Nx = image.sizeX();
-	int Ny = image.sizeY();
-
 	imageBW imSmooth = image;
 	medianFilter(imSmooth, 3);
+	int Nx = imSmooth.sizeX();
+	int Ny = imSmooth.sizeY();
 	peak.resize(2, 0);
 	peakValue = imSmooth.value(0, 0);
 	peak[0] = 0;
 	peak[1] = 0;
-	double C;
+
+	std::vector<int> linePeaksX,linePeaksY;
+	std::vector<double> lineValuesX,lineValuesY;
+	linePeaksX.resize(Nx, 0);
+	lineValuesX.resize(Nx, 0.0);
+	#pragma omp parallel for
 	for (int i = 0; i < Nx; i++) {
+		std::vector<double> line;
+		line.resize(Ny, 0.0);
+		double lineMin = 255.0;
+		int linePI = linePeaksX[i];
+		double linePV = imSmooth.value(i,linePI);
+		double lineMean = 0.0;
+		double lineSTD = 0.0;
+
+		//Find minimum value
 		for (int j = 0; j < Ny; j++) {
-			C = imSmooth.value(i, j);
-			if (C > peakValue) {
-				peak[0] = i;
-				peak[1] = j;
-				peakValue = C;
+			line[j] = imSmooth.value(i, j);
+			lineMean = lineMean + line[j];
+			if (line[j] < lineMin) {
+				lineMin = line[j];
 			}
 		}
-	}
+		lineMean = lineMean / Ny;
 
-	std::vector<double> lineY, dLineY;
-	std::vector<int> countY;
-	double meanY = 0.0;
-	lineY.resize(Ny, 0.0);
-	dLineY.resize(Ny, 0.0);
-	countY.resize(Ny, 0);
-	#pragma omp parallel for reduction(+:meanY)
-	for (int i = 0; i < Ny; i++) {
-		if (i > 0 && i < Ny - 1) {
-			dLineY[i] = (imSmooth.value(peak[0], i + 1) - imSmooth.value(peak[0], i - 1)) / peakValue;
+		for (int j = 0; j < Ny; j++) {
+			lineSTD = lineSTD + (line[j] - lineMean) * (line[j] - lineMean);
 		}
-		else {
-			dLineY[i] = 0.0;
-		}
-		lineY[i] = imSmooth.value(peak[0], i);
-		meanY = meanY + lineY[i];
-	}
-	meanY = meanY / Ny;
+		lineSTD = lineSTD / sqrt(Ny);
+		lineMean = lineMean / Ny - lineMin + 1.0e-9;
 
-	int counter;
-	bool loop = 1;
-	int i = 0;
-	while (loop) {
-		counter = 0;
-		for (int j = 1; j < Ny - i - 4; j++) {
-			if (dLineY[i + j] < 0.0) {
-				counter = counter + 1;
-			}
-			else {
-				if (dLineY[i + j] > 0.0) {
-					counter = counter + 1;
-				}
-				else {
-					if (dLineY[i + j + 1] > 0.0 || dLineY[i + j + 2] > 0.0 || dLineY[i + j + 3] > 0.0) {
-						counter = counter + 1;
-					}
-					else {
-						break;
-					}
+		//Shift by minimum and find maximum location and value
+		for (int j = 0; j < Ny; j++) {
+			line[j] = line[j] - lineMin + 1.0e-9;
+			if (line[j] > linePV) {
+				if (line[j] < lineMean + 4.0 * lineSTD) {
+					linePV = line[j];
+					linePI = j;
 				}
 			}
 		}
-		if (counter > 0) {
-			for (int j = 0; j < counter; j++) {
-				countY[i + j + 1] = counter;
-			}
-			i = i + counter;
+
+		//Fit to gaussian using quad regression
+		double xValue, yValue, a1, a2, a0;
+		int N, index;
+		std::vector<double> sumX, sumY;
+		cv::Mat quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
+
+		//Set fit window size
+		N = (int)std::min(std::min((double)linePI, (double)(Ny - linePI)) - 1, 250.0);
+		sumX.resize(5, 0.0);
+		sumY.resize(3, 0.0);
+
+		for (int i = 0; i < 2 * N + 1; i++) {
+			xValue = (double)i + (double)linePI - (double)N;
+			index = linePI + i - N;
+			yValue = -log(line[index]/(linePV + 1.0e-9));
+			
+			sumX[0] = sumX[0] + 1;
+			sumX[1] = sumX[1] + xValue;
+			sumX[2] = sumX[2] + xValue * xValue;
+			sumX[3] = sumX[3] + xValue * xValue * xValue;
+			sumX[4] = sumX[4] + xValue * xValue * xValue * xValue;
+			sumY[0] = sumY[0] + yValue;
+			sumY[1] = sumY[1] + yValue * xValue;
+			sumY[2] = sumY[2] + yValue * xValue * xValue;
+		}
+
+		quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
+		quadRegMat.at<CvType<CV_64F>::type_t>(0, 0) = sumX[4];
+		quadRegMat.at<CvType<CV_64F>::type_t>(0, 1) = sumX[3];
+		quadRegMat.at<CvType<CV_64F>::type_t>(0, 2) = sumX[2];
+		quadRegMat.at<CvType<CV_64F>::type_t>(1, 0) = sumX[3];
+		quadRegMat.at<CvType<CV_64F>::type_t>(1, 1) = sumX[2];
+		quadRegMat.at<CvType<CV_64F>::type_t>(1, 2) = sumX[1];
+		quadRegMat.at<CvType<CV_64F>::type_t>(2, 0) = sumX[2];
+		quadRegMat.at<CvType<CV_64F>::type_t>(2, 1) = sumX[1];
+		quadRegMat.at<CvType<CV_64F>::type_t>(2, 2) = sumX[0];
+
+		quadRegMat = quadRegMat.inv();
+		a2 = sumY[2] * quadRegMat.at<double>(0, 0) + sumY[1] * quadRegMat.at<double>(0, 1) + sumY[0] * quadRegMat.at<double>(0, 2);
+		a1 = sumY[2] * quadRegMat.at<double>(1, 0) + sumY[1] * quadRegMat.at<double>(1, 1) + sumY[0] * quadRegMat.at<double>(1, 2);
+		a0 = sumY[2] * quadRegMat.at<double>(2, 0) + sumY[1] * quadRegMat.at<double>(2, 1) + sumY[0] * quadRegMat.at<double>(2, 2);
+
+		xValue = - a1 / (2.0 * a2);
+		if (xValue >= 0.0 && xValue < Ny) {
+			linePeaksX[i] = (int)xValue;
 		}
 		else {
-			i++;
+			linePeaksX[i] = linePI;
 		}
-		if (i > Ny - 2) {
-			loop = 0;
-		}
+		lineValuesX[i] = a2 * xValue * xValue + a1 * xValue + a0;
+		lineValuesX[i] = exp(-lineValuesX[i]) * (linePV + 1.0e-9) + lineMin - 1.0e-9;
 	}
 
-	loop = 1;
-	i = 1;
-	while (loop) {
-		if (i + countY[i] + 1 > Ny - 1) {
-			loop = 0;
-		}
-		else {
-			if (dLineY[i] != 0.0 && dLineY[i + 1] != 0.0 && dLineY[i + 2] != 0.0) {
-				for (int j = 0; j < countY[i] + 1; j++) {
-					lineY[i + j] = ceil((lineY[i - 1] + lineY[i + countY[i]]) / 2.0);
-				}
-				i = i + countY[i] + 1;
-			}
-			else {
-				i++;
-			}
-		}
-		
-	}
-
-
-	std::vector<double> lineX, dLineX;
-	std::vector<int> countX;
-	double meanX = 0.0;
-	lineX.resize(Nx, 0.0);
-	dLineX.resize(Nx, 0.0);
-	countX.resize(Nx, 0);
-	#pragma omp parallel for reduction(+:meanY)
 	for (int i = 0; i < Nx; i++) {
-		if (i > 0 && i < Nx - 1) {
-			dLineX[i] = (imSmooth.value(i + 1, peak[1]) - imSmooth.value(i - 1, peak[1])) / peakValue;
-		}
-		else {
-			dLineX[i] = 0.0;
-		}
-		lineX[i] = imSmooth.value(i, peak[0]);
-		meanX = meanX + lineX[i];
-	}
-	meanX = meanX / Nx;
-
-	counter;
-	loop = 1;
-	i = 0;
-	while (loop) {
-		counter = 0;
-		for (int j = 1; j < Nx - i - 4; j++) {
-			if (dLineX[i + j] < 0.0) {
-				counter = counter + 1;
-			}
-			else {
-				if (dLineX[i + j] > 0.0) {
-					counter = counter + 1;
-				}
-				else {
-					if (dLineX[i + j + 1] > 0.0 || dLineX[i + j + 2] > 0.0 || dLineX[i + j + 3] > 0.0) {
-						counter = counter + 1;
-					}
-					else {
-						break;
-					}
-				}
-			}
-		}
-		if (counter > 0) {
-			for (int j = 0; j < counter; j++) {
-				countX[i + j + 1] = counter;
-			}
-			i = i + counter;
-		}
-		else {
-			i++;
-		}
-		if (i > Nx - 2) {
-			loop = 0;
+		if (lineValuesX[i] > peakValue) {
+			peak[0] = i;
+			peak[1] = linePeaksX[i];
+			peakValue = lineValuesX[i];
 		}
 	}
 
-	loop = 1;
-	i = 1;
-	while (loop) {
-		if (i + countX[i] + 1 > Nx - 1) {
-			loop = 0;
-		}
-		else {
-			if (dLineX[i] != 0.0 && dLineX[i + 1] != 0.0 && dLineX[i + 2] != 0.0) {
-				for (int j = 0; j < countX[i] + 1; j++) {
-					lineX[i + j] = ceil((lineX[i - 1] + lineX[i + countX[i]]) / 2.0);
-				}
-				i = i + countX[i] + 1;
-			}
-			else {
-				i++;
-			}
+	std::vector<double> line;
+	line.resize(Nx, 0.0);
+	double lineMin = 255.0;
+	int linePI = 0;
+	double linePV = imSmooth.value(linePI, peak[1]);
+
+	//Find minimum value
+	for (int j = 0; j < Nx; j++) {
+		line[j] = imSmooth.value(j, peak[1]);
+		if (line[j] < lineMin) {
+			lineMin = line[j];
 		}
 	}
 
+	//Shift by minimum and find maximum location and value
+	for (int j = 0; j < Nx; j++) {
+		line[j] = line[j] - lineMin + 1.0e-9;
+		if (line[j] > linePV) {
+			linePV = line[j];
+			linePI = j;
+		}
+	}
+
+	//Fit to gaussian using quad regression
 	double xValue, yValue, a1, a2, a0;
-	int N;
+	int N, index;
 	std::vector<double> sumX, sumY;
 	cv::Mat quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
 
-	N = (int)std::min(std::min((double)peak[0], (double)(Nx - peak[0])) - 1, 250.0);
+	//Set fit window size
+	N = (int)std::min(std::min((double)linePI, (double)(Nx - linePI)) - 1, 250.0);
 	sumX.resize(5, 0.0);
 	sumY.resize(3, 0.0);
 
 	for (int i = 0; i < 2 * N + 1; i++) {
-		xValue = (double)i + (double)peak[0] - (double)N;
-		if (xValue < 0.0) {
-			yValue = lineX[0];
-		}
-		else {
-			if (xValue >= Nx) {
-				yValue = lineX[Nx - 1];
-			}
-			else {
-				yValue = lineX[peak[0] + i - N];
-			}
-		}
+		xValue = (double)i + (double)linePI - (double)N;
+		index = linePI + i - N;
+		yValue = -log(line[index] / (linePV + 1.0e-9));
+
 		sumX[0] = sumX[0] + 1;
 		sumX[1] = sumX[1] + xValue;
 		sumX[2] = sumX[2] + xValue * xValue;
@@ -228,59 +183,13 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	a0 = sumY[2] * quadRegMat.at<double>(2, 0) + sumY[1] * quadRegMat.at<double>(2, 1) + sumY[0] * quadRegMat.at<double>(2, 2);
 
 	xValue = -a1 / (2.0 * a2);
-	if (xValue >= 0 && xValue < (int)lineX.size()) {
-		peak[0] = xValue;
+	if (xValue >= 0.0 && xValue < Nx) {
+		peak[0] = (int)xValue;
 	}
-
-
-	N = (int)std::min(std::min((double)peak[1], (double)(Ny - peak[1])) - 1, 250.0);
-	sumX.resize(5, 0.0);
-	sumY.resize(3, 0.0);
-
-	for (int i = 0; i < 2 * N + 1; i++) {
-		xValue = (double)i + (double)peak[1] - (double)N;
-		if (xValue < 0.0) {
-			yValue = lineY[0];
-		}
-		else {
-			if (xValue >= Ny) {
-				yValue = lineY[Nx - 1];
-			}
-			else {
-				yValue = lineY[peak[1] + i - N];
-			}
-		}
-		sumX[0] = sumX[0] + 1;
-		sumX[1] = sumX[1] + xValue;
-		sumX[2] = sumX[2] + xValue * xValue;
-		sumX[3] = sumX[3] + xValue * xValue * xValue;
-		sumX[4] = sumX[4] + xValue * xValue * xValue * xValue;
-		sumY[0] = sumY[0] + yValue;
-		sumY[1] = sumY[1] + yValue * xValue;
-		sumY[2] = sumY[2] + yValue * xValue * xValue;
+	else {
+		peak[0] = linePI;
 	}
-
-	quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
-	quadRegMat.at<CvType<CV_64F>::type_t>(0, 0) = sumX[4];
-	quadRegMat.at<CvType<CV_64F>::type_t>(0, 1) = sumX[3];
-	quadRegMat.at<CvType<CV_64F>::type_t>(0, 2) = sumX[2];
-	quadRegMat.at<CvType<CV_64F>::type_t>(1, 0) = sumX[3];
-	quadRegMat.at<CvType<CV_64F>::type_t>(1, 1) = sumX[2];
-	quadRegMat.at<CvType<CV_64F>::type_t>(1, 2) = sumX[1];
-	quadRegMat.at<CvType<CV_64F>::type_t>(2, 0) = sumX[2];
-	quadRegMat.at<CvType<CV_64F>::type_t>(2, 1) = sumX[1];
-	quadRegMat.at<CvType<CV_64F>::type_t>(2, 2) = sumX[0];
-
-	quadRegMat = quadRegMat.inv();
-	a2 = sumY[2] * quadRegMat.at<double>(0, 0) + sumY[1] * quadRegMat.at<double>(0, 1) + sumY[0] * quadRegMat.at<double>(0, 2);
-	a1 = sumY[2] * quadRegMat.at<double>(1, 0) + sumY[1] * quadRegMat.at<double>(1, 1) + sumY[0] * quadRegMat.at<double>(1, 2);
-	a0 = sumY[2] * quadRegMat.at<double>(2, 0) + sumY[1] * quadRegMat.at<double>(2, 1) + sumY[0] * quadRegMat.at<double>(2, 2);
-
-	yValue = -a1 / (2.0 * a2);
-	if (yValue >= 0 && yValue < (int)lineY.size()) {
-		peak[1] = yValue;
-	}
-
+	peakValue = imSmooth.value(peak[0], peak[1]);
 }
 
 void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rulerX, std::vector<double>&rulerY, std::vector<double>& pointing) {
