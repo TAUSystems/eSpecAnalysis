@@ -981,7 +981,7 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 
 	size_t resV, resH;
 	double ratio;
-	resH = 1900;
+	resH = 2224;
 	double spX, spY;
 	spY = ((double)imA.sizeY() + (double)imB.sizeY());
 	spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
@@ -1064,9 +1064,11 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 	plt::draw();
 
 	printf("Saving Analysis.\n");
-	// outputName = eSpec.analysisPath() + "/" + outputName + ".png";
-	plt::save(filepath_spectrum);
-	plt::close();
+	std::string outputPath = eSpec.analysisPath() + "/" + outputName + ".png";
+	plt::save(outputPath);
+	double scaling = 0.5;
+	resizeImage(scaling, outputPath, outputPath);
+	printf("Analysis Saved.\n");
 }
 
 void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum,
