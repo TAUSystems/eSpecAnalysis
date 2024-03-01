@@ -1064,10 +1064,9 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 	plt::draw();
 
 	printf("Saving Analysis.\n");
-	std::string outputPath = eSpec.analysisPath() + "/" + outputName + ".png";
-	plt::save(outputPath);
+	plt::save(filepath_spectrum);
 	double scaling = 0.5;
-	resizeImage(scaling, outputPath, outputPath);
+	resizeImage(scaling, filepath_spectrum, filepath_spectrum);
 	printf("Analysis Saved.\n");
 }
 
