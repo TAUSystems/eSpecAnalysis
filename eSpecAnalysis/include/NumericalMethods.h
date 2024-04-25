@@ -943,6 +943,13 @@ void Deviation(std::vector<double>& input, double& mean, double& stdev) {
     stdev = sqrt(stdev_buffer / N);
 }
 
+
+/**
+ * @brief Update y values with the linear regression line through x and y.
+ *
+ * @param x 
+ * @param y modified in-place
+ */
 void linReg(std::vector<double>& x, std::vector<double>& y) {
     int N = std::min((int)x.size(), (int)y.size());
 

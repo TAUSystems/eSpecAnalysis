@@ -5,6 +5,13 @@
 
 #include "Plot.h"
 
+
+/**
+ * @brief Calculates the homography matrix using a set of source and target points.
+ * 
+ * @param points The vector of 4 target and 4 source points.
+ * @param matrixH The output homography matrix.
+ */
 void homographyMat(std::vector<cv::Point2d> points, cv::Mat& matrixH) {
     std::vector<cv::Point2d> sourcePoints;
     std::vector<cv::Point2d> targetPoints;
@@ -24,8 +31,16 @@ void homographyMat(std::vector<cv::Point2d> points, cv::Mat& matrixH) {
     matrixH = cv::findHomography(sourcePoints, targetPoints);
 }
 
+/**
+ * @brief Transforms a pixel using the given homography matrix.
+ * 
+ * @param matrixH The homography matrix.
+ * @param pixel The pixel is transformed in-place.
+ */
 void transformPixel(cv::Mat& matrixH, cv::Point3d& pixel) {
     double x, y, z;
+    
+    // calculate dot product H . pixel
     x = matrixH.at<double>(0, 0) * pixel.x + matrixH.at<double>(0, 1) * pixel.y + matrixH.at<double>(0, 2) * pixel.z;
     y = matrixH.at<double>(1, 0) * pixel.x + matrixH.at<double>(1, 1) * pixel.y + matrixH.at<double>(1, 2) * pixel.z;
     z = matrixH.at<double>(2, 0) * pixel.x + matrixH.at<double>(2, 1) * pixel.y + matrixH.at<double>(2, 2) * pixel.z;
@@ -35,6 +50,14 @@ void transformPixel(cv::Mat& matrixH, cv::Point3d& pixel) {
     pixel.z = z;
 }
 
+/**
+ * @brief Applies perspective transformation to an image using the given homography matrix.
+ * 
+ * @param input image
+ * @param matrixH The homography matrix.
+ * @param windowSize x and y window size
+ * @param output image
+ */
 void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& windowSize, imageBW& output) {
     size_t Nx = (size_t)windowSize[0];
     size_t Ny = (size_t)windowSize[1];
@@ -74,9 +97,17 @@ void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& 
         }
 }
 
+/**
+ * @brief Finds edges in a 1D signal
+ * 
+ * @param mode Not used.
+ * @param threshold The second derivative of the input signal is thresholded to find edges.
+ * @param input A 1-D array.
+ */
 void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
     int N = (int)input.size();
 
+    // calculate the second derivative of the input signal
     std::vector<double> edge;
     edge.resize(N, 0.0);
     #pragma omp parallel for
@@ -95,6 +126,8 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
         plt::show();
     }
     */
+    
+    // threshold the second derivative to find edges
     #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             if (edge[i] > threshold) {
@@ -104,6 +137,7 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
                 edge[i] = 0;
             }
         }
+    
     std::vector<double> dedge;
     dedge.resize(N, 0.0);
     #pragma omp parallel for
@@ -578,6 +612,7 @@ void pixelAxis(ScreenName screen, int Nx, int Ny, std::vector<double>& rulerX, s
         }
     }
 
+    // also 0..nx-1 and 0..ny-1 to pxX and pxY
     std::vector<double> resX, resY, pxX, pxY;
     resX = rulerX;
     resY = rulerY;
@@ -596,6 +631,7 @@ void pixelAxis(ScreenName screen, int Nx, int Ny, std::vector<double>& rulerX, s
     double pxIndex, value, valueMin, valueMax, dv;
 
     
+    // calculate millimeter values for pixels between first and last ruler marks
     bool loop = 1;
     valueMin = std::min(resX.front(), resX.back());
     valueMax = std::max(resX.front(), resX.back());
@@ -612,6 +648,9 @@ void pixelAxis(ScreenName screen, int Nx, int Ny, std::vector<double>& rulerX, s
             loop = 0;
         }
     }
+    
+    // extrapolate millimeter values for pixels outside of the first and last ruler marks
+    // until we have vector of length Nx
     loop = 1;
     dv = rulerX[1] - rulerX[0];
     pxIndex = valueMin - 1.0;
@@ -639,7 +678,7 @@ void pixelAxis(ScreenName screen, int Nx, int Ny, std::vector<double>& rulerX, s
         }
     }
     
-
+    // same for rulerY
     loop = 1;
     valueMin = std::min(resY.front(), resY.back());
     valueMax = std::max(resY.front(), resY.back());
@@ -683,9 +722,12 @@ void pixelAxis(ScreenName screen, int Nx, int Ny, std::vector<double>& rulerX, s
         }
     }
 
+    // linearize rulers
     linReg(pxX, rulerX);
     linReg(pxY, rulerY);
 
+    // shift rulers by zero point
+    // find millimeter value for pixel values zeroPoint
     double zPX, zPY;
     FE1DInterp(pxX, rulerX, zeroPoint[0], zPX);
     FE1DInterp(pxY, rulerY, zeroPoint[1], zPY);
@@ -906,10 +948,19 @@ void writeCalibration(std::string calPath, std::vector<std::vector<int>>& winRes
     output.close();
 }
 
+/**
+ * 
+ * @param calPath The path to the calibration folder, without trailing /
+ * @param H output homography matrices for each of the three screens.
+ * @param xRuler output x-axis rulers for each of the three screens
+ * @param yRuler output y-axis rulers for each of the three screens
+ */
 void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
     std::string filePath = calPath + "/perspective.cache";
 
+    // winRes a (num_x, num_y) pair for each screen
     std::vector<std::vector<int>> winRes;
+    // zeroPoint, a pair of doubles for each screen
     std::vector<std::vector<double>> zP;
     winRes.clear();
     winRes.resize(3);

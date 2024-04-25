@@ -5,6 +5,12 @@
 
 #include "Calibration.h"
 
+/**
+ *
+ * @param image The image to analyze.
+ * @param peak output (x, y)
+ * @param peakValue output (smoothed) value at peak
+ */
 void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	imageBW imSmooth = image;
 	medianFilter(imSmooth, 3);
@@ -212,7 +218,20 @@ void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rule
 	pointing[1] = std::atan2(z, y);
 }
 
-void mRadAxis(spectrometer& eSpec, int& screen, std::vector<double>& rulerX, std::vector<double>& rulerY) {
+
+/**
+ * @brief Convert angle axes to mrad
+ * 
+ * For axes representing transverse angles, calculate their values in mrad. For 
+ * the pointing screen, that's both x and y axes. For LowEnergy and HighEnergy
+ * that's just the y axis.
+ * 
+ * @param eSpec The spectrometer object.
+ * @param screen The screen to find the axis/axes of.
+ * @param rulerX The x-axis that is converted inplace to angle in mrad
+ * @param rulerY The y-axis that is converted inplace to angle in mrad
+ */
+void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>& rulerX, std::vector<double>& rulerY) {
 	int Nx = (int)rulerX.size();
 	int Ny = (int)rulerY.size();
 	int N = std::max(Nx, Ny);
@@ -411,7 +430,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			plotY[1] = (int)rulerY.size() - 1;
 			plt::plot(plotX, plotY, { {"color","w"} });
 		}
-		else {
+		else { // screen is LowEnergy or HighEnergy
 			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
 			double locationX, locationY;
 			for (int i = 1; i < Nx; i++) {
@@ -474,7 +493,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			plt::plot(plotX, plotY, { {"color","w"} });
 		}
 	}
-	else {
+	else {  // mode != 0 
 		int warning = 0;
 		std::vector<double> mRadX = rulerX;
 		std::vector<double> mRadY = rulerY;
@@ -517,7 +536,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			}
 			xTickStart = (int)(eval - 5.0);
 		}
-		else {
+		else {  // screen is LowEnergy or HighEnergy
 			int NE = (int)pSpace.energy(screen).size();
 			int indexStart, indexEnd;
 			std::vector<double> screenPos;
@@ -914,18 +933,36 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
 
 
 
+/**
+ * @brief Computes the spectrum and draws it.
+ *
+ * @param eSpec The spectrometer object.
+ * @param pSpace The paramSpace object.
+ * @param xRuler x-axis in millimeters.
+ * @param yRuler y-axis in millimeters
+ * @param pxX 0..Nx-1
+ * @param pxY 0..Ny-1
+ * @param imP Pointing image
+ * @param imA low energy image
+ * @param imB high energy image
+ * @param filepath_spectrum The filepath for the spectrum & pointing png file
+ */
 void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, 
 						  std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, 
 						  imageBW& imP, imageBW& imA, imageBW& imB, std::string filepath_spectrum
 						 ) {
 
 	// peak corresponds to the whole image, and peakBound only to that within
+	// the desired max transverse angle
 	std::vector<int> peak, peakBound;
 	std::vector<double> pointX, pointY;
 	pointX = xRuler[0];
 	pointY = yRuler[0];
 	mRadAxis(eSpec, Pointing, pointX, pointY);
 	double pointing, eval, dbuffer;
+	
+	// acceptanceBound is the pixel values on the pointing screen corresponding 
+	// to the desired maximum transverse angles, in mrad, as [xmin, xmax, ymin, ymax]
 	std::vector<int> acceptanceBound;
 	acceptanceBound.resize(4, 0);
 	eval = -1.0 * eSpec.angleMax(0);
@@ -957,14 +994,19 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 
 
 	printf("Loaded 3 Images.\n");
+	
+	// analyze Pointing image
 	imageBW imBuffer;
 	int maxValue = 0;
 	bool flagP = 0;
 	bool flagB = 0;
+	// peakValue and totalValue correspond to the whole image, and peakValueB 
+	// and acceptValue only to that within the desired max transverse angle
 	double peakValue, peakValueB, totalValue, acceptValue;
 	imP.crop(acceptanceBound, imBuffer);
 	findSignalPeak(imBuffer, peakBound, peakValueB);
 	findSignalPeak(imP, peak, peakValue);
+	// put peakBound back into the whole image coordinates
 	peakBound[0] = peakBound[0] + acceptanceBound[0];
 	peakBound[1] = peakBound[1] + acceptanceBound[2];
 	eval = (double)((double)imP.sizeY() - 1 - peakBound[1]);
@@ -972,6 +1014,7 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 	maxValue = (int)round(peakValue * 10000);
 	Sum(imP, totalValue);
 	Sum(imBuffer, acceptValue);
+	// totalValue and acceptValue are actualy mean pixel values
 	totalValue = round(totalValue / ((double)(imP.sizeX() * imP.sizeY())) * 10000);
 	acceptValue = round(acceptValue / ((double)(imBuffer.sizeX() * imBuffer.sizeY())) * 10000);
 	printf("Found Pointing.\n");
@@ -1067,6 +1110,23 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 	printf("Analysis Saved.\n");
 }
 
+
+
+/**
+ *
+ * @param filepath_eScreenA The file path of the low energy image.
+ * @param filepath_eScreenB The file path of the high energy image.
+ * @param filepath_ePointing The file path of the pointing image.
+ * @param filepath_spectrum The file path to save the resulting spectrum image.
+ * @param rate Not used.
+ * @param timeout Not used.
+ * @param eSpec The spectrometer object.
+ * @param calibration The screen calibration object.
+ * @param pSpace The parameter space object.
+ * @param H Homography matrices, one for each screen
+ * @param xRuler x-axis in millimeters, one for each screen
+ * @param yRuler y-axis in millimeters, one for each screen
+ */
 void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum,
 				  double& rate, double& timeout, 
 				  spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, 

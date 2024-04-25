@@ -604,7 +604,9 @@ enum ScreenName {
 
 class spectrometer {
     std::vector<std::string> path;
+    // 3 x 5 array representing x, y, z, phi, theta for Pointing, LowEnergy, HighEnergy
     double** screen;
+    // pair of angles representing xMaxAngle, yMaxAngle. in milliradians, i believe -RvM
     double* angle;
     std::string analysis;
 
@@ -837,14 +839,18 @@ public:
     double z(int indexScreen) {
         return screen[indexScreen][2];
     }
+    
+    /* Angle in degrees */
     double phi(int indexScreen) {
         return screen[indexScreen][3];
     }
 
+    /* Angle in degrees */
     double theta(int indexScreen) {
         return screen[indexScreen][4];
     }
 
+    /* Angle in milliradians I think -RvM */
     double angleMax(int dir) {
         return angle[dir];
     }
@@ -1239,8 +1245,11 @@ public:
 };
 
 class paramSpace {
+    // two 2D vectors of ps ??? , for lowenergy and highenergy
     std::vector<std::vector<std::vector<double>>> ps;
+    // two linear energy axis vectors (units??), for lowenergy and highenergy
     std::vector<std::vector<double>> energyAxis;
+    // two linear transverse angle axis vectors (units??), for lowenergy and highenergy
     std::vector<std::vector<double>> pointingAxis;
 public:
     paramSpace() {
@@ -1257,7 +1266,6 @@ public:
         std::vector<double> bufferM;
         bool loop;
         int m, n, N;
-
 
         filePath = calPath + "/eScreenA.map";
         readFile(filePath, buffer);

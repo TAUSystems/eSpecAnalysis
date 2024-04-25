@@ -13,7 +13,9 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
     std::string pathSettings = (configPath / "settings.cfg").string();
     std::string pathCalibration = (configPath / "Calibration").string();
 	std::vector<std::string> settingsFile;
-	std::vector<cv::Mat> H;
+	// homography matrices for each of the three screens
+    std::vector<cv::Mat> H;
+    // x-axis and y-axis rulers for each of the three screens
 	std::vector<std::vector<double>> xRuler, yRuler;
 	spectrometer eSpec;
 	screenCalibration calibration;
