@@ -531,15 +531,33 @@ void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vec
     zeroPoint[1] = pxYCenter;
 }
 
-void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& zeroPoint) {
+
+/**
+ * @brief Turns rulers from pixel locations of mm marks to millimeter axis
+ *
+ * At this point, rulerX and rulerY represent the pixel locations on a calibration 
+ * image of millimeter marks, and zeroPoint is the pixel location of the 0 mark.
+ * 
+ * This function turns the rulers into vectors representing the millimeter values 
+ * of a screen in x and y directions.
+ * 
+ * @param screen 
+ * @param Nx The number of desired ruler values in the x direction.
+ * @param Ny The number of desired ruler values in the y direction.
+ * @param rulerX modified in-place
+ * @param rulerY modified in-place
+ * @param zeroPoint pair of pixel values of 0 mark on x and y rulers
+ */
+void pixelAxis(ScreenName screen, int Nx, int Ny, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& zeroPoint) {
     int nRx = (int)rulerX.size();
     int nRy = (int)rulerY.size();
 
+    // first write 0..nx-1 and 0..ny-1 to mmX and mmY
     int n = std::max(nRx, nRy);
     std::vector<double> mmX, mmY;
     mmX.resize(nRx, 0.0);
     mmY.resize(nRy, 0.0);
-    if (screen == 0) {
+    if (screen == Pointing) {
         for (int i = 0; i < n; i++) {
             if (i < nRx) {
                 mmX[i] = i;
@@ -673,7 +691,8 @@ void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::ve
     FE1DInterp(pxY, rulerY, zeroPoint[1], zPY);
     zPX = round(zPX * 1000.0) / 1000.0;
     zPY = round(zPY * 1000.0) / 1000.0;
-    if (screen == 0) {
+    // shift rulers
+    if (screen == Pointing) {
         for (int i = 0; i < N; i++) {
             if (i < Nx) {
                 rulerX[i] = (zPX - rulerX[i]);
@@ -978,11 +997,9 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
         }
         yRuler[n] = ruler;
     }
-    int screen = 0;
-    pixelAxis(screen, winRes[0][0], winRes[0][1], xRuler[0], yRuler[0], zP[0]);
-    screen = 1;
-    pixelAxis(screen, winRes[1][0], winRes[1][1], xRuler[1], yRuler[1], zP[1]);
-    screen = 2;
-    pixelAxis(screen, winRes[2][0], winRes[2][1], xRuler[2], yRuler[2], zP[2]);
+    
+    pixelAxis(Pointing, winRes[Pointing][0], winRes[Pointing][1], xRuler[Pointing], yRuler[Pointing], zP[Pointing]);
+    pixelAxis(LowEnergy, winRes[LowEnergy][0], winRes[LowEnergy][1], xRuler[LowEnergy], yRuler[LowEnergy], zP[LowEnergy]);
+    pixelAxis(HighEnergy, winRes[HighEnergy][0], winRes[HighEnergy][1], xRuler[HighEnergy], yRuler[HighEnergy], zP[HighEnergy]);
 }
 #endif

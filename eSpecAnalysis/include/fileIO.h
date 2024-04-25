@@ -596,6 +596,12 @@ void resizeImage(double& scaling, std::string& inputFile, std::string& outputFil
     cv::imwrite(outputFile, output);
 }
 
+enum ScreenName {
+    Pointing = 0,
+    LowEnergy = 1,
+    HighEnergy = 2
+};
+
 class spectrometer {
     std::vector<std::string> path;
     double** screen;

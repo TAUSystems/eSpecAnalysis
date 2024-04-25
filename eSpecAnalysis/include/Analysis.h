@@ -221,7 +221,7 @@ void mRadAxis(spectrometer& eSpec, int& screen, std::vector<double>& rulerX, std
 	phi = eSpec.phi(0) / 180 * pi;
 	theta = eSpec.theta(0) / 180 * pi;
 
-	if (screen == 0) {
+	if (screen == Pointing) {
 		for (int i = 0; i < N; i++) {
 			if (i < Nx) {
 				z = eSpec.z(0) + rulerX[i] * std::cos(phi);
@@ -247,7 +247,7 @@ void mRadAxis(spectrometer& eSpec, int& screen, std::vector<double>& rulerX, std
 	}
 }
 
-void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
+void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenName& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
 	std::vector<double> pixelX, pixelY;
 	int Nx = (int)rulerX.size();
 	int Ny = (int)rulerY.size();
@@ -334,7 +334,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 		std::vector<double> plotX, plotY;
 		plotX.resize(2, 0.0);
 		plotY.resize(2, 0.0);
-		if (screen == 0) {
+		if (screen == Pointing) {
 			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
 			for (int i = 0; i < Nx; i++) {
 				plotX[0] = xAxis[i];
@@ -492,7 +492,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 		ptMin = 0;
 		xAxis.push_back(xZero);
 		bool loop = 1;
-		if (screen == 0) {
+		if (screen == Pointing) {
 			while (loop) {
 				eval = eval - 5.0;
 				FE1DInterp(mRadX, pixelX, eval, value);
@@ -679,7 +679,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 		std::vector<double> plotX, plotY;
 		plotX.resize(2, 0.0);
 		plotY.resize(2, 0.0);
-		if (screen == 0) {
+		if (screen == Pointing) {
 			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
 			for (int i = 0; i < Nx; i++) {
 				plotX[0] = xAxis[i];
@@ -918,16 +918,13 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 						  std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, 
 						  imageBW& imP, imageBW& imA, imageBW& imB, std::string filepath_spectrum
 						 ) {
-	int screenA, screenB, screenP;
-	screenA = 1;
-	screenB = 2;
-	screenP = 0;
 
+	// peak corresponds to the whole image, and peakBound only to that within
 	std::vector<int> peak, peakBound;
 	std::vector<double> pointX, pointY;
 	pointX = xRuler[0];
 	pointY = yRuler[0];
-	mRadAxis(eSpec, screenP, pointX, pointY);
+	mRadAxis(eSpec, Pointing, pointX, pointY);
 	double pointing, eval, dbuffer;
 	std::vector<int> acceptanceBound;
 	acceptanceBound.resize(4, 0);
@@ -1049,16 +1046,16 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 		}
 	}
 
-	drawAxis(1, eSpec, pSpace, screenP, xRuler[screenP], yRuler[screenP], pointing);
+	drawAxis(1, eSpec, pSpace, Pointing, xRuler[Pointing], yRuler[Pointing], pointing);
 
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 1, 1, (int)(spX / spY));
 	pltimshow(imA, 1, "");
-	drawAxis(1, eSpec, pSpace, screenA, xRuler[screenA], yRuler[screenA], pointing);
+	drawAxis(1, eSpec, pSpace, LowEnergy, xRuler[LowEnergy], yRuler[LowEnergy], pointing);
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 1, 1, 1, (int)(spX / spY));
 	pltimshow(imB, 1, "");
-	drawAxis(1, eSpec, pSpace, screenB, xRuler[screenB], yRuler[screenB], pointing);
+	drawAxis(1, eSpec, pSpace, HighEnergy, xRuler[HighEnergy], yRuler[HighEnergy], pointing);
 	plt::axis("off");
 	plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
 	plt::draw();
@@ -1075,15 +1072,12 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 				  spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, 
 				  std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler
 				 ) {
-	
-	int screenA, screenB, screenP;
-	screenA = 1;
-	screenB = 2;
-	screenP = 0;
+
 	std::vector<double> viewResA, viewResB, viewResP, lineBuffer, pxX, pxY;
-	viewResA = calibration.viewResolution(screenA);
-	viewResB = calibration.viewResolution(screenB);
-	viewResP = calibration.viewResolution(screenP);
+	// (winSize_x, winSize_y) for each screen
+	viewResA = calibration.viewResolution(LowEnergy);
+	viewResB = calibration.viewResolution(HighEnergy);
+	viewResP = calibration.viewResolution(Pointing);
 	bool fileFound = 0;
 	imageBW imBuffer, imA, imB, imP;
 
@@ -1103,10 +1097,11 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 	imP.destroy();
 	uint fileCount = 0;
 
-	loadFile(filepath_eScreenA,  H[screenA], viewResA, imA);
-	loadFile(filepath_eScreenB,  H[screenB], viewResB, imB);
-	loadFile(filepath_ePointing, H[screenP], viewResP, imP);
+	loadFile(filepath_eScreenA,  H[LowEnergy], viewResA, imA);
+	loadFile(filepath_eScreenB,  H[HighEnergy], viewResB, imB);
+	loadFile(filepath_ePointing, H[Pointing], viewResP, imP);
 
+	// historical. Used to check if the files were found.
 	fileCount = 15;
 
 	if (fileCount == 15) {
