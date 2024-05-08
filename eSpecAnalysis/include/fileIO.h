@@ -603,6 +603,7 @@ enum ScreenName {
 };
 
 class spectrometer {
+    // paths to directories containing images, one for each screen
     std::vector<std::string> path;
     // 3 x 5 array representing x, y, z, phi, theta for Pointing, LowEnergy, HighEnergy
     double** screen;
@@ -861,7 +862,12 @@ public:
 };
 
 class screenCalibration {
+    // 4 x 8 array representing 8 corners' coordinates for four screens
+    // first four represent coordinates in screen image of screen
+    // last four represent coordinates in transformed image
+    // in order top left, top right, bottom right, bottom left
     std::vector<std::vector<cv::Point2d>> calPoints;
+    // 4 x 2 array representing xsize, ysize for four screens
     std::vector<std::vector<double>> winSize;
     std::vector<std::vector<double>> threshold;
 public:
@@ -894,6 +900,7 @@ public:
 
         #pragma omp parallel for
             for (int i = 0; i < N; i++) {
+                // top edge
                 if (calibration[i].find("xTEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -904,6 +911,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[0][0].y = std::stod(strValue.c_str());
                 }
+                // left edge
                 if (calibration[i].find("xLEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -914,6 +922,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[0][3].y = std::stod(strValue.c_str());
                 }
+                // bottom edge
                 if (calibration[i].find("xBEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -924,6 +933,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[0][2].y = std::stod(strValue.c_str());
                 }
+                // right edge
                 if (calibration[i].find("xREPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -934,6 +944,8 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[0][1].y = std::stod(strValue.c_str());
                 }
+                // how much to extend the crop window beyond edges
+                // use winSize to hold padding right now
                 if (calibration[i].find("xPadEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -944,6 +956,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     winSize[0][1] = std::stod(strValue.c_str());
                 }
+                // for calibration mode, to help find ruler marks in reference image
                 if (calibration[i].find("xContrastEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -965,6 +978,7 @@ public:
                     threshold[0][3] = std::stod(strValue.c_str());
                 }
 
+                // top left
                 if (calibration[i].find("xTLEScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -975,6 +989,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[1][0].y = std::stod(strValue.c_str());
                 }
+                // bottom left
                 if (calibration[i].find("xBLEScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -985,6 +1000,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[1][3].y = std::stod(strValue.c_str());
                 }
+                // bottom right
                 if (calibration[i].find("xBREScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -995,6 +1011,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[1][2].y = std::stod(strValue.c_str());
                 }
+                // top right
                 if (calibration[i].find("xTREScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1005,6 +1022,8 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[1][1].y = std::stod(strValue.c_str());
                 }
+                // padding
+                // use winSize to hold padding right now
                 if (calibration[i].find("xPadEScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1035,7 +1054,6 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     threshold[1][3] = std::stod(strValue.c_str());
                 }
-
                 if (calibration[i].find("xTLEScreenB") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1076,6 +1094,8 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[2][1].y = std::stod(strValue.c_str());
                 }
+                // padding
+                // use winSize to hold padding right now
                 if (calibration[i].find("xPadEScreenB") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1147,6 +1167,8 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[3][1].y = std::stod(strValue.c_str());
                 }
+                // padding
+                // use winSize to hold padding right now
                 if (calibration[i].find("xPadPPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1179,6 +1201,7 @@ public:
                 }
             }
 
+        // determine desired points to transform the first four points to on transformed image
         for (int i = 0; i < 4; i++) {
             if (i == 0) {
                 double xL, xH, yL, yH, xC, yC;
@@ -1186,6 +1209,7 @@ public:
                 xL = std::min(std::min(calPoints[i][0].x, calPoints[i][1].x), std::min(calPoints[i][2].x, calPoints[i][3].x));
                 yH = std::max(std::max(calPoints[i][0].y, calPoints[i][1].y), std::max(calPoints[i][2].y, calPoints[i][3].y));
                 yL = std::min(std::min(calPoints[i][0].y, calPoints[i][1].y), std::min(calPoints[i][2].y, calPoints[i][3].y));
+                // at this point, winSize holds padding values
                 xC = (xH - xL)/2 + winSize[i][0];
                 yC = (yH - yL)/2 + winSize[i][1];
 
@@ -1203,6 +1227,7 @@ public:
                 calPoints[i][5].x = xH;
                 calPoints[i][5].y = yC;
 
+                // finally 
                 winSize[i][0] = xH + winSize[i][0];
                 winSize[i][1] = yH + winSize[i][1];
             }
