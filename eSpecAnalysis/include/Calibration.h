@@ -62,6 +62,8 @@ void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& 
     size_t Nx = (size_t)windowSize[0];
     size_t Ny = (size_t)windowSize[1];
 
+    // cropping is not actually used! overwritten by the for loop below. 
+    // TODO: generate Nx x Ny output image another way
     std::vector<size_t> bounds;
     bounds.resize(4, 0);
     bounds[0] = 0;
@@ -576,8 +578,8 @@ void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vec
  * of a screen in x and y directions.
  * 
  * @param screen 
- * @param Nx The number of desired ruler values in the x direction.
- * @param Ny The number of desired ruler values in the y direction.
+ * @param Nx The number of desired axis mm values in the x direction.
+ * @param Ny The number of desired axis mm values in the y direction.
  * @param rulerX modified in-place
  * @param rulerY modified in-place
  * @param zeroPoint pair of pixel values of 0 mark on x and y rulers
@@ -951,11 +953,11 @@ void writeCalibration(std::string calPath, std::vector<std::vector<int>>& winRes
 /**
  * 
  * @param calPath The path to the calibration folder, without trailing /
- * @param H output homography matrices for each of the three screens.
- * @param xRuler output x-axis rulers for each of the three screens
- * @param yRuler output y-axis rulers for each of the three screens
+ * @param homographyMatrices one for each of the three screens.
+ * @param xRuler pixel values of millimeter marks of x-axis for each of the three screens
+ * @param yRuler pixel values of millimeter marks of y-axis for each of the three screens
  */
-void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
+void readCalibration(std::string calPath, std::vector<cv::Mat>& homographyMatrices, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
     std::string filePath = calPath + "/perspective.cache";
 
     // winRes a (num_x, num_y) pair for each screen
@@ -964,8 +966,8 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
     std::vector<std::vector<double>> zP;
     winRes.clear();
     winRes.resize(3);
-    H.clear();
-    H.resize(3);
+    homographyMatrices.clear();
+    homographyMatrices.resize(3);
     zP.clear();
     zP.resize(3);
     xRuler.clear();
@@ -1012,7 +1014,7 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
                 buffer[4 * n + 1] = buffer[4 * n + 1].substr(index, buffer[4 * n + 1].length());
             }
         }
-        H[n] = bufferH;
+        homographyMatrices[n] = bufferH;
 
         bool loop = 1;
         std::vector<double> ruler;

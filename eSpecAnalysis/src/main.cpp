@@ -14,33 +14,35 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
     std::string pathCalibration = (configPath / "Calibration").string();
 	std::vector<std::string> settingsFile;
 	// homography matrices for each of the three screens
-    std::vector<cv::Mat> H;
+    std::vector<cv::Mat> homographyMatrices;
     // x-axis and y-axis rulers for each of the three screens
 	std::vector<std::vector<double>> xRuler, yRuler;
 	spectrometer eSpec;
 	screenCalibration calibration;
-	int opMode;
+	int operatingMode;
 	double rate, timeout;
 	struct stat sb;
 
 	readFile(pathSettings, settingsFile);
-	getOpParameters(settingsFile, opMode, rate, timeout);
+	getOpParameters(settingsFile, operatingMode, rate, timeout);
 	rate = 1.0 / (2.0 * rate);
 
     eSpec.generate(settingsFile);
-	calibration.loadCalibration(pathCalibration);
+	// load calibration data, used in operatingMode 1 to get window size
+    calibration.loadCalibration(pathCalibration);
 
     int screen;
-    switch (opMode) {
+    switch (operatingMode) {
         case 1:
             screen = 1;
             // std::cout << "\nAnalysis with Pointing Screen\n";
             if (true || (stat(eSpec.screenPath(screen).c_str(), &sb) == 0)) {
-                readCalibration(pathCalibration, H, xRuler, yRuler);
-                paramSpace pSpace;
+                // reads perspective.cache
+                readCalibration(pathCalibration, homographyMatrices, xRuler, yRuler);
+                trajectoryEndpointSurfaces pSpace;
                 pSpace.loadMap(pathCalibration);
                 pointingMode(filepath_eScreenA, filepath_eScreenB, filepath_ePointing, filepath_spectrum, 
-                             rate, timeout, eSpec, calibration, pSpace, H, xRuler, yRuler
+                             rate, timeout, eSpec, calibration, pSpace, homographyMatrices, xRuler, yRuler
                             );
             }
             else {
@@ -49,7 +51,7 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
             break;
 
         default:
-            std::cout << "\nOnly opMode 1 (pointingMode) is implemented.\n";
+            std::cout << "\nOnly operatingMode 1 (pointingMode) is implemented.\n";
             break;
     }
 

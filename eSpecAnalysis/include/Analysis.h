@@ -266,7 +266,7 @@ void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>
 	}
 }
 
-void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenName& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
+void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpointSurfaces & pSpace, const ScreenName& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
 	std::vector<double> pixelX, pixelY;
 	int Nx = (int)rulerX.size();
 	int Ny = (int)rulerY.size();
@@ -283,7 +283,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 		return countT++;
 		});
 
-	if (mode == 0) {
+	if (!convertToEnergyAndAngle) {
 		std::vector<double> xAxis, yAxis;
 		double value, eval, xZero, yZero;
 		int xTickStart, yTickStart;
@@ -493,14 +493,14 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			plt::plot(plotX, plotY, { {"color","w"} });
 		}
 	}
-	else {  // mode != 0 
+	else {  // convertToEnergyAndAngle = true
 		int warning = 0;
 		std::vector<double> mRadX = rulerX;
 		std::vector<double> mRadY = rulerY;
 		mRadAxis(eSpec, screen, mRadX, mRadY);
 
-		std::vector<double> xAxis, yAxis;
-		std::vector<int> xTick;
+		std::vector<double> xAxisTickLocations, yAxis;
+		std::vector<int> xAxisTickValues;
 		double value, eval, xZero, yZero, ptMax, ptMin;
 		int xTickStart, yTickStart;
 		eval = 0.0;
@@ -509,14 +509,14 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 
 		ptMax = 0;
 		ptMin = 0;
-		xAxis.push_back(xZero);
+		xAxisTickLocations.push_back(xZero);
 		bool loop = 1;
 		if (screen == Pointing) {
 			while (loop) {
 				eval = eval - 5.0;
 				FE1DInterp(mRadX, pixelX, eval, value);
 				if (value > 0 && value < Nx) {
-					xAxis.push_back(value);
+					xAxisTickLocations.push_back(value);
 				}
 				else {
 					loop = 0;
@@ -528,7 +528,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 				eval = eval + 5.0;
 				FE1DInterp(mRadX, pixelX, eval, value);
 				if (value > 0 && value < Nx) {
-					xAxis.insert(xAxis.begin(), value);
+					xAxisTickLocations.insert(xAxisTickLocations.begin(), value);
 				}
 				else {
 					loop = 0;
@@ -537,12 +537,12 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			xTickStart = (int)(eval - 5.0);
 		}
 		else {  // screen is LowEnergy or HighEnergy
-			int NE = (int)pSpace.energy(screen).size();
+			int NE = (int)pSpace.getEnergyAxis(screen).size();
 			int indexStart, indexEnd;
 			std::vector<double> screenPos;
-			std::vector<double> EnAxis = pSpace.energy(screen);
-			std::vector<double> PtAxis = pSpace.pointing(screen);
-			std::vector<std::vector<double>> pS = pSpace.parameterSpace(screen);
+			std::vector<double> EnAxis = pSpace.getEnergyAxis(screen);
+			std::vector<double> PtAxis = pSpace.getPointingAxis(screen);
+			std::vector<std::vector<double>> pS = pSpace.getTrajectoryEndpointSurface(screen);
 			ptMax = std::max(PtAxis.front(), PtAxis.back());
 			ptMin = std::min(PtAxis.front(), PtAxis.back());
 			double dE = abs(EnAxis[1] - EnAxis[0]);
@@ -635,12 +635,12 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			}
 			eval = Ehigh;
 
-			xAxis.clear();
-			xTick.clear();
+			xAxisTickLocations.clear();
+			xAxisTickValues.clear();
 			FE1DInterp(EnAxis, screenPos, eval, value);
 			value = round(value * 10.0) / 10.0;
-			xTick.push_back((int)eval);
-			xAxis.push_back(value);
+			xAxisTickValues.push_back((int)eval);
+			xAxisTickLocations.push_back(value);
 			loop = 1;
 			while (loop) {
 				eval = eval - 10;
@@ -648,9 +648,9 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 					FE1DInterp(EnAxis, screenPos, eval, value);
 					value = round(value * 10.0) / 10.0;
 					if (value > 0 && value < Nx) {
-						if (abs(value - xAxis.back()) >= 15.0) {
-							xTick.push_back((int)eval);
-							xAxis.push_back(value);
+						if (abs(value - xAxisTickLocations.back()) >= 15.0) {
+							xAxisTickValues.push_back((int)eval);
+							xAxisTickLocations.push_back(value);
 						}
 					}
 					else {
@@ -663,7 +663,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			}
 			xTickStart = Ehigh;
 		}
-		Nx = (int)xAxis.size();
+		Nx = (int)xAxisTickLocations.size();
 
 		eval = 0.0;
 		yAxis.push_back(yZero);
@@ -701,8 +701,8 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 		if (screen == Pointing) {
 			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
 			for (int i = 0; i < Nx; i++) {
-				plotX[0] = xAxis[i];
-				plotX[1] = xAxis[i];
+				plotX[0] = xAxisTickLocations[i];
+				plotX[1] = xAxisTickLocations[i];
 				plotY[0] = yZero - 25;
 				plotY[1] = yZero + 25;
 				plt::plot(plotX, plotY, { {"color","w"} });
@@ -710,23 +710,23 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 					if ((xTickStart - 5 * i) >= 0) {
 						if ((xTickStart - 5 * i) > 0) {
 							if ((xTickStart - 5 * i) < 10) {
-								plt::text(xAxis[i] - 50, yZero + 75, " 0" + std::to_string(xTickStart - 5 * i));
+								plt::text(xAxisTickLocations[i] - 50, yZero + 75, " 0" + std::to_string(xTickStart - 5 * i));
 							}
 							else {
-								plt::text(xAxis[i] - 50, yZero + 75, " " + std::to_string(xTickStart - 5 * i));
+								plt::text(xAxisTickLocations[i] - 50, yZero + 75, " " + std::to_string(xTickStart - 5 * i));
 							}
 						}
 						else {
-							plt::text(xAxis[i] - 50, yZero + 75, " 00");
+							plt::text(xAxisTickLocations[i] - 50, yZero + 75, " 00");
 						}
 
 					}
 					else {
 						if ((xTickStart - 5 * i) <= -10) {
-							plt::text(xAxis[i] - 50, yZero + 75, std::to_string(xTickStart - 5 * i));
+							plt::text(xAxisTickLocations[i] - 50, yZero + 75, std::to_string(xTickStart - 5 * i));
 						}
 						else {
-							plt::text(xAxis[i] - 50, yZero + 75, "-0" + std::to_string(abs(xTickStart - 5 * i)));
+							plt::text(xAxisTickLocations[i] - 50, yZero + 75, "-0" + std::to_string(abs(xTickStart - 5 * i)));
 						}
 					}
 				}
@@ -797,23 +797,23 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			}
 			int lastLabel = 1;
 			for (int i = 1; i < Nx; i++) {
-				plotX[0] = xAxis[i];
-				plotX[1] = xAxis[i];
+				plotX[0] = xAxisTickLocations[i];
+				plotX[1] = xAxisTickLocations[i];
 				plt::plot(plotX, plotY, { {"color","w"} });
-				if (xTick[i] % 20 == 0) {
+				if (xAxisTickValues[i] % 20 == 0) {
 					if (i > 1){
-						if (abs(xAxis[i] - xAxis[lastLabel]) > 60) {
-							plt::text(xAxis[i] - 20, locationY, std::to_string(xTick[i]));
+						if (abs(xAxisTickLocations[i] - xAxisTickLocations[lastLabel]) > 60) {
+							plt::text(xAxisTickLocations[i] - 20, locationY, std::to_string(xAxisTickValues[i]));
 							lastLabel = i;
 						}
 					}
 					else {
-						plt::text(xAxis[i] - 20, locationY, std::to_string(xTick[i]));
+						plt::text(xAxisTickLocations[i] - 20, locationY, std::to_string(xAxisTickValues[i]));
 					}
 				}
 				else {
 					if (i == Nx - 1) {
-						plt::text(xAxis[i] - 20, locationY, std::to_string(xTick[i]));
+						plt::text(xAxisTickLocations[i] - 20, locationY, std::to_string(xAxisTickValues[i]));
 					}
 				}
 			}
@@ -832,11 +832,11 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"} });
 			double dx = (int)rulerX.size();
 			for (int i = 0; i < Nx; i++) {
-				value = abs(xAxis[i] - 25);
+				value = abs(xAxisTickLocations[i] - 25);
 				if (value < dx) {
 					dx = value;
-					plotX[0] = xAxis[i];
-					plotX[1] = xAxis[i];
+					plotX[0] = xAxisTickLocations[i];
+					plotX[1] = xAxisTickLocations[i];
 				}
 			}
 			if (dx > 60) {
@@ -937,9 +937,9 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
  * @brief Computes the spectrum and draws it.
  *
  * @param eSpec The spectrometer object.
- * @param pSpace The paramSpace object.
- * @param xRuler x-axis in millimeters.
- * @param yRuler y-axis in millimeters
+ * @param pSpace The trajectoryEndpointSurfaces object.
+ * @param xAxes x-axis in millimeters, one for each screen
+ * @param yAxes y-axis in millimeters, one for each screen
  * @param pxX 0..Nx-1
  * @param pxY 0..Ny-1
  * @param imP Pointing image
@@ -947,18 +947,18 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
  * @param imB high energy image
  * @param filepath_spectrum The filepath for the spectrum & pointing png file
  */
-void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, 
-						  std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, 
+void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpace, 
+						  std::vector<std::vector<double>>& xAxes, std::vector<std::vector<double>>& yAxes, std::vector<double>& pxX, std::vector<double>& pxY, 
 						  imageBW& imP, imageBW& imA, imageBW& imB, std::string filepath_spectrum
 						 ) {
 
 	// peak corresponds to the whole image, and peakBound only to that within
 	// the desired max transverse angle
 	std::vector<int> peak, peakBound;
-	std::vector<double> pointX, pointY;
-	pointX = xRuler[0];
-	pointY = yRuler[0];
-	mRadAxis(eSpec, Pointing, pointX, pointY);
+	std::vector<double> xAxisPointing, yAxisPointing;
+	xAxisPointing = xAxes[Pointing];
+	yAxisPointing = yAxes[Pointing];
+	mRadAxis(eSpec, Pointing, xAxisPointing, yAxisPointing);
 	double pointing, eval, dbuffer;
 	
 	// acceptanceBound is the pixel values on the pointing screen corresponding 
@@ -966,16 +966,16 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 	std::vector<int> acceptanceBound;
 	acceptanceBound.resize(4, 0);
 	eval = -1.0 * eSpec.angleMax(0);
-	FE1DInterp(pointX, pxX, eval, dbuffer);
+	FE1DInterp(xAxisPointing, pxX, eval, dbuffer);
 	acceptanceBound[0] = (int)round(dbuffer);
 	eval = eSpec.angleMax(0);
-	FE1DInterp(pointX, pxX, eval, dbuffer);
+	FE1DInterp(xAxisPointing, pxX, eval, dbuffer);
 	acceptanceBound[1] = (int)round(dbuffer);
 	eval = -1.0 * eSpec.angleMax(1);
-	FE1DInterp(pointY, pxY, eval, dbuffer);
+	FE1DInterp(yAxisPointing, pxY, eval, dbuffer);
 	acceptanceBound[2] = (int)round(dbuffer);
 	eval = eSpec.angleMax(1);
-	FE1DInterp(pointY, pxY, eval, dbuffer);
+	FE1DInterp(yAxisPointing, pxY, eval, dbuffer);
 	acceptanceBound[3] = (int)round(dbuffer);
 
 	std::vector<double> boundboxX, boundboxY;
@@ -1010,7 +1010,7 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 	peakBound[0] = peakBound[0] + acceptanceBound[0];
 	peakBound[1] = peakBound[1] + acceptanceBound[2];
 	eval = (double)((double)imP.sizeY() - 1 - peakBound[1]);
-	FE1DInterp(pxY, pointY, eval, pointing);
+	FE1DInterp(pxY, yAxisPointing, eval, pointing);
 	maxValue = (int)round(peakValue * 10000);
 	Sum(imP, totalValue);
 	Sum(imBuffer, acceptValue);
@@ -1089,16 +1089,16 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
 		}
 	}
 
-	drawAxis(1, eSpec, pSpace, Pointing, xRuler[Pointing], yRuler[Pointing], pointing);
+	drawAxis(1, eSpec, pSpace, Pointing, xAxes[Pointing], yAxes[Pointing], pointing);
 
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 1, 1, (int)(spX / spY));
 	pltimshow(imA, 1, "");
-	drawAxis(1, eSpec, pSpace, LowEnergy, xRuler[LowEnergy], yRuler[LowEnergy], pointing);
+	drawAxis(1, eSpec, pSpace, LowEnergy, xAxes[LowEnergy], yAxes[LowEnergy], pointing);
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 1, 1, 1, (int)(spX / spY));
 	pltimshow(imB, 1, "");
-	drawAxis(1, eSpec, pSpace, HighEnergy, xRuler[HighEnergy], yRuler[HighEnergy], pointing);
+	drawAxis(1, eSpec, pSpace, HighEnergy, xAxes[HighEnergy], yAxes[HighEnergy], pointing);
 	plt::axis("off");
 	plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
 	plt::draw();
@@ -1124,13 +1124,13 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
  * @param calibration The screen calibration object.
  * @param pSpace The parameter space object.
  * @param H Homography matrices, one for each screen
- * @param xRuler x-axis in millimeters, one for each screen
- * @param yRuler y-axis in millimeters, one for each screen
+ * @param xAxes x-axis in millimeters, one for each screen
+ * @param yAxes y-axis in millimeters, one for each screen
  */
 void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum,
 				  double& rate, double& timeout, 
-				  spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, 
-				  std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler
+				  spectrometer& eSpec, screenCalibration& calibration, trajectoryEndpointSurfaces & pSpace, 
+				  std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xAxes, std::vector<std::vector<double>>& yAxes
 				 ) {
 
 	std::vector<double> viewResA, viewResB, viewResP, lineBuffer, pxX, pxY;
@@ -1150,7 +1150,7 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 			pxY.push_back((double)i);
 		}
 	}
-	
+
 	plt::close();
 	imA.destroy();
 	imB.destroy(); 
@@ -1165,7 +1165,7 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 	fileCount = 15;
 
 	if (fileCount == 15) {
-		drawPointingAnalysis(eSpec, pSpace, xRuler, yRuler, pxX, pxY, imP, imA, imB, filepath_spectrum);
+		drawPointingAnalysis(eSpec, pSpace, xAxes, yAxes, pxX, pxY, imP, imA, imB, filepath_spectrum);
 	}
 	else {
 		switch (fileCount) {
