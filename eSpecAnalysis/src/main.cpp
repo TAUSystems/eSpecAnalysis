@@ -19,19 +19,20 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
 	std::vector<std::vector<double>> xRuler, yRuler;
 	spectrometer eSpec;
 	screenCalibration calibration;
-	int opMode;
+	int operatingMode;
 	double rate, timeout;
 	struct stat sb;
 
 	readFile(pathSettings, settingsFile);
-	getOpParameters(settingsFile, opMode, rate, timeout);
+	getOpParameters(settingsFile, operatingMode, rate, timeout);
 	rate = 1.0 / (2.0 * rate);
 
     eSpec.generate(settingsFile);
-	calibration.loadCalibration(pathCalibration);
+	// load calibration data, used in operatingMode 1 to get window size
+    calibration.loadCalibration(pathCalibration);
 
     int screen;
-    switch (opMode) {
+    switch (operatingMode) {
         case 1:
             screen = 1;
             // std::cout << "\nAnalysis with Pointing Screen\n";
@@ -50,7 +51,7 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
             break;
 
         default:
-            std::cout << "\nOnly opMode 1 (pointingMode) is implemented.\n";
+            std::cout << "\nOnly operatingMode 1 (pointingMode) is implemented.\n";
             break;
     }
 
