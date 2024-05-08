@@ -14,7 +14,7 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
     std::string pathCalibration = (configPath / "Calibration").string();
 	std::vector<std::string> settingsFile;
 	// homography matrices for each of the three screens
-    std::vector<cv::Mat> H;
+    std::vector<cv::Mat> homographyMatrices;
     // x-axis and y-axis rulers for each of the three screens
 	std::vector<std::vector<double>> xRuler, yRuler;
 	spectrometer eSpec;
@@ -36,11 +36,12 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
             screen = 1;
             // std::cout << "\nAnalysis with Pointing Screen\n";
             if (true || (stat(eSpec.screenPath(screen).c_str(), &sb) == 0)) {
-                readCalibration(pathCalibration, H, xRuler, yRuler);
                 paramSpace pSpace;
+                // reads perspective.cache
+                readCalibration(pathCalibration, homographyMatrices, xRuler, yRuler);
                 pSpace.loadMap(pathCalibration);
                 pointingMode(filepath_eScreenA, filepath_eScreenB, filepath_ePointing, filepath_spectrum, 
-                             rate, timeout, eSpec, calibration, pSpace, H, xRuler, yRuler
+                             rate, timeout, eSpec, calibration, pSpace, homographyMatrices, xRuler, yRuler
                             );
             }
             else {
