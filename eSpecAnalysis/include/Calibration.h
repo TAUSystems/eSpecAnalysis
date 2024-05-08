@@ -62,6 +62,8 @@ void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& 
     size_t Nx = (size_t)windowSize[0];
     size_t Ny = (size_t)windowSize[1];
 
+    // cropping is not actually used! overwritten by the for loop below. 
+    // TODO: generate Nx x Ny output image another way
     std::vector<size_t> bounds;
     bounds.resize(4, 0);
     bounds[0] = 0;
@@ -576,8 +578,8 @@ void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vec
  * of a screen in x and y directions.
  * 
  * @param screen 
- * @param Nx The number of desired ruler values in the x direction.
- * @param Ny The number of desired ruler values in the y direction.
+ * @param Nx The number of desired axis mm values in the x direction.
+ * @param Ny The number of desired axis mm values in the y direction.
  * @param rulerX modified in-place
  * @param rulerY modified in-place
  * @param zeroPoint pair of pixel values of 0 mark on x and y rulers

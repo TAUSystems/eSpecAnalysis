@@ -1089,16 +1089,16 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 		}
 	}
 
-	drawAxis(1, eSpec, pSpace, Pointing, xRuler[Pointing], yRuler[Pointing], pointing);
+	drawAxis(1, eSpec, pSpace, Pointing, xAxes[Pointing], yAxes[Pointing], pointing);
 
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 1, 1, (int)(spX / spY));
 	pltimshow(imA, 1, "");
-	drawAxis(1, eSpec, pSpace, LowEnergy, xRuler[LowEnergy], yRuler[LowEnergy], pointing);
+	drawAxis(1, eSpec, pSpace, LowEnergy, xAxes[LowEnergy], yAxes[LowEnergy], pointing);
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 1, 1, 1, (int)(spX / spY));
 	pltimshow(imB, 1, "");
-	drawAxis(1, eSpec, pSpace, HighEnergy, xRuler[HighEnergy], yRuler[HighEnergy], pointing);
+	drawAxis(1, eSpec, pSpace, HighEnergy, xAxes[HighEnergy], yAxes[HighEnergy], pointing);
 	plt::axis("off");
 	plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
 	plt::draw();
@@ -1124,8 +1124,8 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
  * @param calibration The screen calibration object.
  * @param pSpace The parameter space object.
  * @param H Homography matrices, one for each screen
- * @param xRuler x-axis in millimeters, one for each screen
- * @param yRuler y-axis in millimeters, one for each screen
+ * @param xAxes x-axis in millimeters, one for each screen
+ * @param yAxes y-axis in millimeters, one for each screen
  */
 void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum,
 				  double& rate, double& timeout, 
@@ -1150,7 +1150,7 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 			pxY.push_back((double)i);
 		}
 	}
-	
+
 	plt::close();
 	imA.destroy();
 	imB.destroy(); 
@@ -1165,7 +1165,7 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 	fileCount = 15;
 
 	if (fileCount == 15) {
-		drawPointingAnalysis(eSpec, pSpace, xRuler, yRuler, pxX, pxY, imP, imA, imB, filepath_spectrum);
+		drawPointingAnalysis(eSpec, pSpace, xAxes, yAxes, pxX, pxY, imP, imA, imB, filepath_spectrum);
 	}
 	else {
 		switch (fileCount) {
