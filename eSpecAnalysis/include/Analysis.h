@@ -266,7 +266,7 @@ void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>
 	}
 }
 
-void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenName& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
+void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpointSurfaces & pSpace, const ScreenName& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
 	std::vector<double> pixelX, pixelY;
 	int Nx = (int)rulerX.size();
 	int Ny = (int)rulerY.size();
@@ -283,7 +283,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 		return countT++;
 		});
 
-	if (mode == 0) {
+	if (!convertToEnergyAndAngle) {
 		std::vector<double> xAxis, yAxis;
 		double value, eval, xZero, yZero;
 		int xTickStart, yTickStart;
@@ -493,7 +493,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			plt::plot(plotX, plotY, { {"color","w"} });
 		}
 	}
-	else {  // mode != 0 
+	else {  // convertToEnergyAndAngle = true
 		int warning = 0;
 		std::vector<double> mRadX = rulerX;
 		std::vector<double> mRadY = rulerY;
@@ -537,12 +537,12 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, const ScreenN
 			xTickStart = (int)(eval - 5.0);
 		}
 		else {  // screen is LowEnergy or HighEnergy
-			int NE = (int)pSpace.energy(screen).size();
+			int NE = (int)pSpace.getEnergyAxis(screen).size();
 			int indexStart, indexEnd;
 			std::vector<double> screenPos;
-			std::vector<double> EnAxis = pSpace.energy(screen);
-			std::vector<double> PtAxis = pSpace.pointing(screen);
-			std::vector<std::vector<double>> pS = pSpace.parameterSpace(screen);
+			std::vector<double> EnAxis = pSpace.getEnergyAxis(screen);
+			std::vector<double> PtAxis = pSpace.getPointingAxis(screen);
+			std::vector<std::vector<double>> pS = pSpace.getTrajectoryEndpointSurface(screen);
 			ptMax = std::max(PtAxis.front(), PtAxis.back());
 			ptMin = std::min(PtAxis.front(), PtAxis.back());
 			double dE = abs(EnAxis[1] - EnAxis[0]);
@@ -937,9 +937,9 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
  * @brief Computes the spectrum and draws it.
  *
  * @param eSpec The spectrometer object.
- * @param pSpace The paramSpace object.
- * @param xRuler x-axis in millimeters.
- * @param yRuler y-axis in millimeters
+ * @param pSpace The trajectoryEndpointSurfaces object.
+ * @param xAxes x-axis in millimeters, one for each screen
+ * @param yAxes y-axis in millimeters, one for each screen
  * @param pxX 0..Nx-1
  * @param pxY 0..Ny-1
  * @param imP Pointing image
@@ -947,8 +947,8 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
  * @param imB high energy image
  * @param filepath_spectrum The filepath for the spectrum & pointing png file
  */
-void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, 
-						  std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, 
+void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpace, 
+						  std::vector<std::vector<double>>& xAxes, std::vector<std::vector<double>>& yAxes, std::vector<double>& pxX, std::vector<double>& pxY, 
 						  imageBW& imP, imageBW& imA, imageBW& imB, std::string filepath_spectrum
 						 ) {
 
@@ -1129,8 +1129,8 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace,
  */
 void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, std::string filepath_ePointing, std::string filepath_spectrum,
 				  double& rate, double& timeout, 
-				  spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, 
-				  std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler
+				  spectrometer& eSpec, screenCalibration& calibration, trajectoryEndpointSurfaces & pSpace, 
+				  std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xAxes, std::vector<std::vector<double>>& yAxes
 				 ) {
 
 	std::vector<double> viewResA, viewResB, viewResP, lineBuffer, pxX, pxY;

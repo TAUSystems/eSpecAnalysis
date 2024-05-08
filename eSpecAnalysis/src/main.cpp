@@ -36,9 +36,9 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
             screen = 1;
             // std::cout << "\nAnalysis with Pointing Screen\n";
             if (true || (stat(eSpec.screenPath(screen).c_str(), &sb) == 0)) {
-                paramSpace pSpace;
                 // reads perspective.cache
                 readCalibration(pathCalibration, homographyMatrices, xRuler, yRuler);
+                trajectoryEndpointSurfaces pSpace;
                 pSpace.loadMap(pathCalibration);
                 pointingMode(filepath_eScreenA, filepath_eScreenB, filepath_ePointing, filepath_spectrum, 
                              rate, timeout, eSpec, calibration, pSpace, homographyMatrices, xRuler, yRuler

@@ -1244,16 +1244,26 @@ public:
     }
 };
 
-class paramSpace {
-    // two 2D vectors of ps ??? , for lowenergy and highenergy
-    std::vector<std::vector<std::vector<double>>> ps;
-    // two linear energy axis vectors (units??), for lowenergy and highenergy
+/**
+ * @class trajectoryEndpointSurfaces
+ * @brief Stores calculated landing position on screens of electrons with given energy and angle.
+ * 
+ * Contains a 2 x n x m array showing the position in millimeters along the x-axis
+ * of LowEnergy and HighEnergy screens where an electron with given energy and vertical 
+ * transverse angle should land, along with the corresponding energy and angle axes. 
+ * 
+ */
+class trajectoryEndpointSurfaces {
+
+    // two 2D arrays where x-axis is energy, y-axis is pointing angle
+    std::vector<std::vector<std::vector<double>>> trajectoryEndpoint;
+    // two linear energy axis vectors in MeV, for lowenergy and highenergy
     std::vector<std::vector<double>> energyAxis;
-    // two linear transverse angle axis vectors (units??), for lowenergy and highenergy
+    // two linear transverse angle axis vectors mrad, for lowenergy and highenergy
     std::vector<std::vector<double>> pointingAxis;
 public:
-    paramSpace() {
-        ps.resize(2);
+    trajectoryEndpointSurfaces() {
+        trajectoryEndpoint.resize(2);
         energyAxis.resize(2);
         pointingAxis.resize(2);
     }
@@ -1289,7 +1299,7 @@ public:
         dp = std::stod(strValue.c_str());
 
         m = (int)buffer.size();
-        ps[0].clear();
+        trajectoryEndpoint[0].clear();
         for (int i = 1; i < m; i++) {
             loop = 1;
             bufferM.clear();
@@ -1306,10 +1316,10 @@ public:
                     loop = 0;
                 }
             }
-            ps[0].push_back(bufferM);
+            trajectoryEndpoint[0].push_back(bufferM);
         }
         m = m - 1;
-        n = (int)ps[0][0].size();
+        n = (int)trajectoryEndpoint[0][0].size();
         N = std::max(n, m);
         for (int i = 0; i < N; i++) {
             if (i < m) {
@@ -1342,7 +1352,7 @@ public:
         dp = std::stod(strValue.c_str());
 
         m = (int)buffer.size();
-        ps[1].clear();
+        trajectoryEndpoint[1].clear();
         for (int i = 1; i < m; i++) {
             loop = 1;
             bufferM.clear();
@@ -1359,10 +1369,10 @@ public:
                     loop = 0;
                 }
             }
-            ps[1].push_back(bufferM);
+            trajectoryEndpoint[1].push_back(bufferM);
         }
         m = m - 1;
-        n = (int)ps[1][0].size();
+        n = (int)trajectoryEndpoint[1][0].size();
         N = std::max(n, m);
         for (int i = 0; i < N; i++) {
             if (i < m) {
@@ -1374,16 +1384,16 @@ public:
         }
     }
 
-    std::vector<double> energy(int screen) { 
+    std::vector<double> getEnergyAxis(int screen) { 
         return energyAxis[screen - 1];
     }
 
-    std::vector<double> pointing(int screen) {
+    std::vector<double> getPointingAxis(int screen) {
         return pointingAxis[screen - 1];
     }
 
-    std::vector<std::vector<double>> parameterSpace(int screen) {
-        return ps[screen - 1];
+    std::vector<std::vector<double>> getTrajectoryEndpointSurface(int screen) {
+        return trajectoryEndpoint[screen - 1];
     }
 };
 
