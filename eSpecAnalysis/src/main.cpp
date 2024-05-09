@@ -37,7 +37,8 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
             screen = 1;
             // std::cout << "\nAnalysis with Pointing Screen\n";
             if (true || (stat(eSpec.screenPath(screen).c_str(), &sb) == 0)) {
-                // reads perspective.cache
+                // reads perspective.cache. 
+                // Changes xRuler and yRuler from ruler tick locations to axis values in mm
                 readCalibration(pathCalibration, homographyMatrices, xRuler, yRuler);
                 trajectoryEndpointSurfaces pSpace;
                 pSpace.loadMap(pathCalibration);

@@ -266,10 +266,21 @@ void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>
 	}
 }
 
-void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpointSurfaces & pSpace, const ScreenName& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
+/**
+ * Draws the axis on the screen.
+ *
+ * @param convertToEnergyAndAngle Flag indicating whether axes need to be converted
+ * @param eSpec The spectrometer object.
+ * @param pSpace Trajectory endpoint surfaces
+ * @param screen Which screen's axis to draw.
+ * @param xAxis The X-axis values in millimeter.
+ * @param yAxis The Y-axis values in millimeter.
+ * @param verticalPointingAngle The angle in mrad of the peak's y value on the pointing screen
+ */
+void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpointSurfaces & pSpace, const ScreenName& screen, std::vector<double>& xAxis, std::vector<double>& yAxis, double verticalPointingAngle) {
 	std::vector<double> pixelX, pixelY;
-	int Nx = (int)rulerX.size();
-	int Ny = (int)rulerY.size();
+	int Nx = (int)xAxis.size();
+	int Ny = (int)yAxis.size();
 	pixelX.resize(Nx);
 	pixelY.resize(Ny);
 
@@ -284,21 +295,21 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 		});
 
 	if (!convertToEnergyAndAngle) {
-		std::vector<double> xAxis, yAxis;
+		std::vector<double> xAxisTickLocations, yAxisTickLocations;
 		double value, eval, xZero, yZero;
 		int xTickStart, yTickStart;
 		eval = 0.0;
-		FE1DInterp(rulerX, pixelX, eval, xZero);
-		FE1DInterp(rulerY, pixelY, eval, yZero);
+		FE1DInterp(xAxis, pixelX, eval, xZero);
+		FE1DInterp(yAxis, pixelY, eval, yZero);
 
-		xAxis.push_back(xZero);
+		xAxisTickLocations.push_back(xZero);
 		bool loop = 1;
 		while (loop) {
 			eval = eval - 5.0;
-			FE1DInterp(rulerX, pixelX, eval, value);
+			FE1DInterp(xAxis, pixelX, eval, value);
 			value = round(value * 10.0) / 10.0;
 			if (value > 0 && value < Nx) {
-				xAxis.push_back(value);
+				xAxisTickLocations.push_back(value);
 			}
 			else {
 				loop = 0;
@@ -308,27 +319,27 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 		loop = 1;
 		while (loop) {
 			eval = eval + 5.0;
-			FE1DInterp(rulerX, pixelX, eval, value);
+			FE1DInterp(xAxis, pixelX, eval, value);
 			value = round(value * 10.0) / 10.0;
 			if (value > 0 && value < Nx) {
-				xAxis.insert(xAxis.begin(), value);
+				xAxisTickLocations.insert(xAxisTickLocations.begin(), value);
 			}
 			else {
 				loop = 0;
 			}
 		}
 		xTickStart = (int)(eval - 5.0);
-		Nx = (int)xAxis.size();
+		Nx = (int)xAxisTickLocations.size();
 
 		eval = 0.0;
-		yAxis.push_back(yZero);
+		yAxisTickLocations.push_back(yZero);
 		loop = 1;
 		while (loop) {
 			eval = eval - 5.0;
-			FE1DInterp(rulerY, pixelY, eval, value);
+			FE1DInterp(yAxis, pixelY, eval, value);
 			value = round(value * 10.0) / 10.0;
 			if (value > 0 && value < Ny) {
-				yAxis.push_back(value);
+				yAxisTickLocations.push_back(value);
 			}
 			else {
 				loop = 0;
@@ -338,17 +349,17 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 		loop = 1;
 		while (loop) {
 			eval = eval + 5.0;
-			FE1DInterp(rulerY, pixelY, eval, value);
+			FE1DInterp(yAxis, pixelY, eval, value);
 			value = round(value * 10.0) / 10.0;
 			if (value > 0 && value < Ny) {
-				yAxis.insert(yAxis.begin(), value);
+				yAxisTickLocations.insert(yAxisTickLocations.begin(), value);
 			}
 			else {
 				loop = 0;
 			}
 		}
 		yTickStart = (int)(eval - 5.0);
-		Ny = (int)yAxis.size();
+		Ny = (int)yAxisTickLocations.size();
 
 		std::vector<double> plotX, plotY;
 		plotX.resize(2, 0.0);
@@ -356,33 +367,33 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 		if (screen == Pointing) {
 			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
 			for (int i = 0; i < Nx; i++) {
-				plotX[0] = xAxis[i];
-				plotX[1] = xAxis[i];
+				plotX[0] = xAxisTickLocations[i];
+				plotX[1] = xAxisTickLocations[i];
 				plotY[0] = yZero - 10;
 				plotY[1] = yZero + 10;
 				plt::plot(plotX, plotY, { {"color","w"} });
 				if (xTickStart - 5 * i != 0) {
-					//plt::text(xAxis[i] - 10, yZero + 25, std::to_string(xTickStart - 5 * i));
+					//plt::text(xAxisTickLocations[i] - 10, yZero + 25, std::to_string(xTickStart - 5 * i));
 					if ((xTickStart - 5 * i) >= 0) {
 						if ((xTickStart - 5 * i) > 0) {
 							if ((xTickStart - 5 * i) < 10) {
-								plt::text(xAxis[i] - 30, yZero + 50, " 0" + std::to_string(xTickStart - 5 * i));
+								plt::text(xAxisTickLocations[i] - 30, yZero + 50, " 0" + std::to_string(xTickStart - 5 * i));
 							}
 							else {
-								plt::text(xAxis[i] - 30, yZero + 50, " " + std::to_string(xTickStart - 5 * i));
+								plt::text(xAxisTickLocations[i] - 30, yZero + 50, " " + std::to_string(xTickStart - 5 * i));
 							}
 						}
 						else {
-							plt::text(xAxis[i] - 30, yZero + 50, " 00");
+							plt::text(xAxisTickLocations[i] - 30, yZero + 50, " 00");
 						}
 
 					}
 					else {
 						if ((xTickStart - 5 * i) <= -10) {
-							plt::text(xAxis[i] - 30, yZero + 50, std::to_string(xTickStart - 5 * i));
+							plt::text(xAxisTickLocations[i] - 30, yZero + 50, std::to_string(xTickStart - 5 * i));
 						}
 						else {
-							plt::text(xAxis[i] - 30, yZero + 50, "-0" + std::to_string(abs(xTickStart - 5 * i)));
+							plt::text(xAxisTickLocations[i] - 30, yZero + 50, "-0" + std::to_string(abs(xTickStart - 5 * i)));
 						}
 					}
 				}
@@ -390,116 +401,116 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 			for (int i = 0; i < Ny; i++) {
 				plotX[0] = xZero - 10;
 				plotX[1] = xZero + 10;
-				plotY[0] = yAxis[i];
-				plotY[1] = yAxis[i];
+				plotY[0] = yAxisTickLocations[i];
+				plotY[1] = yAxisTickLocations[i];
 				plt::plot(plotX, plotY, { {"color","w"} });
 				if (yTickStart - 5 * i != 0) {
-					//plt::text(xZero + 25, yAxis[i] + 5, std::to_string(yTickStart - 5 * i));
+					//plt::text(xZero + 25, yAxisTickLocations[i] + 5, std::to_string(yTickStart - 5 * i));
 					if ((yTickStart - 5 * i) >= 0) {
 						if ((yTickStart - 5 * i) > 0) {
 							if ((yTickStart - 5 * i) < 10) {
-								plt::text(xZero + 25, yAxis[i] + 10, " 0" + std::to_string(yTickStart - 5 * i));
+								plt::text(xZero + 25, yAxisTickLocations[i] + 10, " 0" + std::to_string(yTickStart - 5 * i));
 							}
 							else {
-								plt::text(xZero + 25, yAxis[i] + 10, " " + std::to_string(yTickStart - 5 * i));
+								plt::text(xZero + 25, yAxisTickLocations[i] + 10, " " + std::to_string(yTickStart - 5 * i));
 							}
 						}
 						else {
-							plt::text(xZero + 25, yAxis[i] + 10, " 00");
+							plt::text(xZero + 25, yAxisTickLocations[i] + 10, " 00");
 						}
 
 					}
 					else {
 						if ((yTickStart - 5 * i) <= -10) {
-							plt::text(xZero + 25, yAxis[i] + 10, std::to_string(yTickStart - 5 * i));
+							plt::text(xZero + 25, yAxisTickLocations[i] + 10, std::to_string(yTickStart - 5 * i));
 						}
 						else {
-							plt::text(xZero + 25, yAxis[i] + 10, "-0" + std::to_string(abs(yTickStart - 5 * i)));
+							plt::text(xZero + 25, yAxisTickLocations[i] + 10, "-0" + std::to_string(abs(yTickStart - 5 * i)));
 						}
 					}
 				}
 			}
 			plotX[0] = 0;
-			plotX[1] = (int)rulerX.size() - 1;
+			plotX[1] = (int)xAxis.size() - 1;
 			plotY[0] = yZero;
 			plotY[1] = yZero;
 			plt::plot(plotX, plotY, { {"color","w"} });
 			plotX[0] = xZero;
 			plotX[1] = xZero;
 			plotY[0] = 0;
-			plotY[1] = (int)rulerY.size() - 1;
+			plotY[1] = (int)yAxis.size() - 1;
 			plt::plot(plotX, plotY, { {"color","w"} });
 		}
 		else { // screen is LowEnergy or HighEnergy
 			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
 			double locationX, locationY;
 			for (int i = 1; i < Nx; i++) {
-				plotX[0] = xAxis[i];
-				plotX[1] = xAxis[i];
-				plotY[0] = yAxis[0];
+				plotX[0] = xAxisTickLocations[i];
+				plotX[1] = xAxisTickLocations[i];
+				plotY[0] = yAxisTickLocations[0];
 				plotY[1] = 0;
 				plt::plot(plotX, plotY, { {"color","w"} });
 				locationY = 35;
 				if ((xTickStart - 5 * i) % 10 == 0) {
 					if ((xTickStart - 5 * i) == 0) {
-						plt::text(xAxis[i] - 15, locationY, "00");
+						plt::text(xAxisTickLocations[i] - 15, locationY, "00");
 					}
 					else {
-						plt::text(xAxis[i] - 15, locationY, std::to_string(xTickStart - 5 * i));
+						plt::text(xAxisTickLocations[i] - 15, locationY, std::to_string(xTickStart - 5 * i));
 					}
 				}
 			}
 			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"} });
 			for (int i = 0; i < Ny; i++) {
-				plotX[0] = xAxis[0];
+				plotX[0] = xAxisTickLocations[0];
 				plotX[1] = 0;
-				plotY[0] = yAxis[i];
-				plotY[1] = yAxis[i];
+				plotY[0] = yAxisTickLocations[i];
+				plotY[1] = yAxisTickLocations[i];
 				plt::plot(plotX, plotY, { {"color","w"} });
 				locationX = -35;
 				if ((yTickStart - 5 * i) >= 0) {
 					if ((yTickStart - 5 * i) > 0) {
 						if ((yTickStart - 5 * i) < 10) {
-							plt::text(locationX, yAxis[i] + 5, " 0" + std::to_string(yTickStart - 5 * i));
+							plt::text(locationX, yAxisTickLocations[i] + 5, " 0" + std::to_string(yTickStart - 5 * i));
 						}
 						else {
-							plt::text(locationX, yAxis[i] + 5, " " + std::to_string(yTickStart - 5 * i));
+							plt::text(locationX, yAxisTickLocations[i] + 5, " " + std::to_string(yTickStart - 5 * i));
 						}
 					}
 					else {
-						plt::text(locationX, yAxis[i] + 5, " 00");
+						plt::text(locationX, yAxisTickLocations[i] + 5, " 00");
 					}
 					
 				}
 				else {
 					if ((yTickStart - 5 * i) <= -10) {
-						plt::text(locationX, yAxis[i] + 5, std::to_string(yTickStart - 5 * i));
+						plt::text(locationX, yAxisTickLocations[i] + 5, std::to_string(yTickStart - 5 * i));
 					}
 					else {
-						plt::text(locationX, yAxis[i] + 5, "-0" + std::to_string(abs(yTickStart - 5 * i)));
+						plt::text(locationX, yAxisTickLocations[i] + 5, "-0" + std::to_string(abs(yTickStart - 5 * i)));
 					}
 				}
 				
 			}
 			plotX[0] = 0;
-			plotX[1] = (int)rulerX.size() - 1;
-			plotY[0] = yAxis[0];
-			plotY[1] = yAxis[0];
+			plotX[1] = (int)xAxis.size() - 1;
+			plotY[0] = yAxisTickLocations[0];
+			plotY[1] = yAxisTickLocations[0];
 			plt::plot(plotX, plotY, { {"color","w"} });
-			plotX[0] = xAxis[0];
-			plotX[1] = xAxis[0];
+			plotX[0] = xAxisTickLocations[0];
+			plotX[1] = xAxisTickLocations[0];
 			plotY[0] = 0;
-			plotY[1] = (int)rulerY.size() - 1;
+			plotY[1] = (int)yAxis.size() - 1;
 			plt::plot(plotX, plotY, { {"color","w"} });
 		}
 	}
 	else {  // convertToEnergyAndAngle = true
 		int warning = 0;
-		std::vector<double> mRadX = rulerX;
-		std::vector<double> mRadY = rulerY;
+		std::vector<double> mRadX = xAxis;
+		std::vector<double> mRadY = yAxis;
 		mRadAxis(eSpec, screen, mRadX, mRadY);
 
-		std::vector<double> xAxisTickLocations, yAxis;
+		std::vector<double> xAxisTickLocations, yAxisTickLocations;
 		std::vector<int> xAxisTickValues;
 		double value, eval, xZero, yZero, ptMax, ptMin;
 		int xTickStart, yTickStart;
@@ -578,8 +589,8 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 			}
 
 			double Elow, Ehigh;
-			double screenLow = std::min(rulerX.front(), rulerX.back());
-			double screenHigh = std::max(rulerX.front(), rulerX.back());
+			double screenLow = std::min(xAxis.front(), xAxis.back());
+			double screenHigh = std::max(xAxis.front(), xAxis.back());
 			indexStart = 0;
 			indexEnd = NE - 1;
 			if (screenPos.front() >= screenLow) {
@@ -621,7 +632,7 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 				NE = (int)EnAxis.size();
 				screenPos.resize(NE, 0.0);
 				for (int i = 0; i < NE; i++) {
-					FE1DInterp(rulerX, pixelX, bufferSP[i], screenPos[i]);
+					FE1DInterp(xAxis, pixelX, bufferSP[i], screenPos[i]);
 				}
 				bufferE.clear();
 				bufferSP.clear();
@@ -629,7 +640,7 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 			else {
 				std::vector<double> bufferSP = screenPos;
 				for (int i = 0; i < NE; i++) {
-					FE1DInterp(rulerX, pixelX, bufferSP[i], screenPos[i]);
+					FE1DInterp(xAxis, pixelX, bufferSP[i], screenPos[i]);
 				}
 				bufferSP.clear();
 			}
@@ -666,14 +677,14 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 		Nx = (int)xAxisTickLocations.size();
 
 		eval = 0.0;
-		yAxis.push_back(yZero);
+		yAxisTickLocations.push_back(yZero);
 		loop = 1;
 		while (loop) {
 			eval = eval - 5.0;
 			FE1DInterp(mRadY, pixelY, eval, value);
 			value = round(value * 10.0) / 10.0;
 			if (value > 0 && value < Ny) {
-				yAxis.push_back(value);
+				yAxisTickLocations.push_back(value);
 			}
 			else {
 				loop = 0;
@@ -686,14 +697,14 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 			FE1DInterp(mRadY, pixelY, eval, value);
 			value = round(value * 10.0) / 10.0;
 			if (value > 0 && value < Ny) {
-				yAxis.insert(yAxis.begin(), value);
+				yAxisTickLocations.insert(yAxisTickLocations.begin(), value);
 			}
 			else {
 				loop = 0;
 			}
 		}
 		yTickStart = (int)(eval - 5.0);
-		Ny = (int)yAxis.size();
+		Ny = (int)yAxisTickLocations.size();
 
 		std::vector<double> plotX, plotY;
 		plotX.resize(2, 0.0);
@@ -734,66 +745,66 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 			for (int i = 0; i < Ny; i++) {
 				plotX[0] = xZero - 25;
 				plotX[1] = xZero + 25;
-				plotY[0] = yAxis[i];
-				plotY[1] = yAxis[i];
+				plotY[0] = yAxisTickLocations[i];
+				plotY[1] = yAxisTickLocations[i];
 				plt::plot(plotX, plotY, { {"color","w"} });
 				if (yTickStart - 5 * i != 0) {
 					if ((yTickStart - 5 * i) >= 0) {
 						if ((yTickStart - 5 * i) > 0) {
 							if ((yTickStart - 5 * i) < 10) {
-								plt::text(xZero + 40, yAxis[i] + 15, " 0" + std::to_string(yTickStart - 5 * i));
+								plt::text(xZero + 40, yAxisTickLocations[i] + 15, " 0" + std::to_string(yTickStart - 5 * i));
 							}
 							else {
-								plt::text(xZero + 40, yAxis[i] + 15, " " + std::to_string(yTickStart - 5 * i));
+								plt::text(xZero + 40, yAxisTickLocations[i] + 15, " " + std::to_string(yTickStart - 5 * i));
 							}
 						}
 						else {
-							plt::text(xZero + 40, yAxis[i] + 15, " 00");
+							plt::text(xZero + 40, yAxisTickLocations[i] + 15, " 00");
 						}
 
 					}
 					else {
 						if ((yTickStart - 5 * i) <= -10) {
-							plt::text(xZero + 40, yAxis[i] + 15, std::to_string(yTickStart - 5 * i));
+							plt::text(xZero + 40, yAxisTickLocations[i] + 15, std::to_string(yTickStart - 5 * i));
 						}
 						else {
-							plt::text(xZero + 40, yAxis[i] + 15, "-0" + std::to_string(abs(yTickStart - 5 * i)));
+							plt::text(xZero + 40, yAxisTickLocations[i] + 15, "-0" + std::to_string(abs(yTickStart - 5 * i)));
 						}
 					}
 				}
 			}
 			plotX[0] = 0;
-			plotX[1] = (int)rulerX.size() - 1;
+			plotX[1] = (int)xAxis.size() - 1;
 			plotY[0] = yZero;
 			plotY[1] = yZero;
 			plt::plot(plotX, plotY, { {"color","w"} });
 			plotX[0] = xZero;
 			plotX[1] = xZero;
 			plotY[0] = 0;
-			plotY[1] = (int)rulerY.size() - 1;
+			plotY[1] = (int)yAxis.size() - 1;
 			plt::plot(plotX, plotY, { {"color","w"} });
 		}
 		else {
 			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
 			plotX[0] = 0;
-			plotX[1] = (int)rulerX.size() - 1;
+			plotX[1] = (int)xAxis.size() - 1;
 			double locationX, locationY;
 			if (screen == 1) {
-				plotY[0] = yAxis[1];
-				plotY[1] = yAxis[1];
+				plotY[0] = yAxisTickLocations[1];
+				plotY[1] = yAxisTickLocations[1];
 				locationY = 25;
 			}
 			else {
-				plotY[0] = yAxis[0];
-				plotY[1] = yAxis[0];
+				plotY[0] = yAxisTickLocations[0];
+				plotY[1] = yAxisTickLocations[0];
 				locationY = 20;
 			}
 			plt::plot(plotX, plotY, { {"color","w"} });
 			if (screen == 1) {
-				plotY[1] = yAxis[1] - 20;
+				plotY[1] = yAxisTickLocations[1] - 20;
 			}
 			else {
-				plotY[1] = yAxis[0] - 20;
+				plotY[1] = yAxisTickLocations[0] - 20;
 			}
 			int lastLabel = 1;
 			for (int i = 1; i < Nx; i++) {
@@ -820,17 +831,17 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 			if (warning == 1) {
 				std::string pValue = std::to_string(ptMax);
 				pValue = pValue.substr(0, 4);
-				plt::text((int)(0.775 * rulerX.size()), (int)(0.9 * rulerY.size()), std::string("Out of Range! Axis for ") + pValue + std::string(" mrad"));
+				plt::text((int)(0.775 * xAxis.size()), (int)(0.9 * yAxis.size()), std::string("Out of Range! Axis for ") + pValue + std::string(" mrad"));
 			}
 			else {
 				if (warning == -1) {
 					std::string pValue = std::to_string(ptMin);
 					pValue = pValue.substr(0, 5);
-					plt::text((int)(0.775 * rulerX.size()), (int)(0.9 * rulerY.size()), std::string("Out of Range! Axis for ") + pValue + std::string(" mrad"));
+					plt::text((int)(0.775 * xAxis.size()), (int)(0.9 * yAxis.size()), std::string("Out of Range! Axis for ") + pValue + std::string(" mrad"));
 				}
 			}
 			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"} });
-			double dx = (int)rulerX.size();
+			double dx = (int)xAxis.size();
 			for (int i = 0; i < Nx; i++) {
 				value = abs(xAxisTickLocations[i] - 25);
 				if (value < dx) {
@@ -844,12 +855,12 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 				plotX[1] = 25;
 			}
 			plotY[0] = 0;
-			plotY[1] = (int)rulerY.size() - 1;
+			plotY[1] = (int)yAxis.size() - 1;
 			plt::plot(plotX, plotY, { {"color","w"} });
 			plotX[1] = 0;
 			for (int i = 0; i < Ny; i++) {
-				plotY[0] = yAxis[i];
-				plotY[1] = yAxis[i];
+				plotY[0] = yAxisTickLocations[i];
+				plotY[1] = yAxisTickLocations[i];
 				if (yTickStart - 5 * i > -15 && yTickStart - 5 * i < 15) {
 					plt::plot(plotX, plotY, { {"color","w"} });
 				}
@@ -858,26 +869,26 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 					if ((yTickStart - 5 * i) > 0) {
 						if ((yTickStart - 5 * i) < 15) {
 							if ((yTickStart - 5 * i) < 10) {
-								plt::text(locationX, yAxis[i] + 5, " 0" + std::to_string(yTickStart - 5 * i));
+								plt::text(locationX, yAxisTickLocations[i] + 5, " 0" + std::to_string(yTickStart - 5 * i));
 							}
 							else {
-								plt::text(locationX, yAxis[i] + 5, " " + std::to_string(yTickStart - 5 * i));
+								plt::text(locationX, yAxisTickLocations[i] + 5, " " + std::to_string(yTickStart - 5 * i));
 							}
 						}
 					}
 					else {
-						plt::text(locationX, yAxis[i] + 5, " 00");
+						plt::text(locationX, yAxisTickLocations[i] + 5, " 00");
 					}
 
 				}
 				else {
 					if ((yTickStart - 5 * i) <= -10) {
 						if ((yTickStart - 5 * i) > -15){
-							plt::text(locationX, yAxis[i] + 5, std::to_string(yTickStart - 5 * i));
+							plt::text(locationX, yAxisTickLocations[i] + 5, std::to_string(yTickStart - 5 * i));
 						}
 					}
 					else {
-						plt::text(locationX, yAxis[i] + 5, "-0" + std::to_string(abs(yTickStart - 5 * i)));
+						plt::text(locationX, yAxisTickLocations[i] + 5, "-0" + std::to_string(abs(yTickStart - 5 * i)));
 					}
 				}
 
