@@ -558,7 +558,7 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 			ptMin = std::min(PtAxis.front(), PtAxis.back());
 			double dE = abs(EnAxis[1] - EnAxis[0]);
 			screenPos.resize(NE, 0.0);
-			if (pointing > ptMax) {
+			if (verticalPointingAngle > ptMax) {
 				for (int i = 0; i < NE; i++) {
 					if (ptMax == PtAxis.front()) {
 						screenPos[i] = pS[i][0];
@@ -570,7 +570,7 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 				}
 			}
 			else {
-				if (pointing < ptMin) {
+				if (verticalPointingAngle < ptMin) {
 					for (int i = 0; i < NE; i++) {
 						if (ptMin == PtAxis.front()) {
 							screenPos[i] = pS[i][0];
@@ -583,7 +583,7 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 				}
 				else {
 					for (int i = 0; i < NE; i++) {
-						FE2DInterp(EnAxis, PtAxis, pS, EnAxis[i], pointing, screenPos[i]);
+						FE2DInterp(EnAxis, PtAxis, pS, EnAxis[i], verticalPointingAngle, screenPos[i]);
 					}
 				}
 			}
@@ -970,7 +970,9 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 	xAxisPointing = xAxes[Pointing];
 	yAxisPointing = yAxes[Pointing];
 	mRadAxis(eSpec, Pointing, xAxisPointing, yAxisPointing);
-	double pointing, eval, dbuffer;
+	// the transverse angle in mrad along the Pointing screen y-axis at the peak
+	double verticalPointingAngle;
+	double eval, dbuffer;
 	
 	// acceptanceBound is the pixel values on the pointing screen corresponding 
 	// to the desired maximum transverse angles, in mrad, as [xmin, xmax, ymin, ymax]
@@ -1021,7 +1023,7 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 	peakBound[0] = peakBound[0] + acceptanceBound[0];
 	peakBound[1] = peakBound[1] + acceptanceBound[2];
 	eval = (double)((double)imP.sizeY() - 1 - peakBound[1]);
-	FE1DInterp(pxY, yAxisPointing, eval, pointing);
+	FE1DInterp(pxY, yAxisPointing, eval, verticalPointingAngle);
 	maxValue = (int)round(peakValue * 10000);
 	Sum(imP, totalValue);
 	Sum(imBuffer, acceptValue);
@@ -1077,7 +1079,7 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 	plt::plot(drawLineX, drawLineY, { {"color","b"} });
 
 	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
-	std::string pValue = std::to_string(pointing);
+	std::string pValue = std::to_string(verticalPointingAngle);
 	std::string mValue = std::to_string(maxValue);
 	std::string tValue = std::to_string((int)totalValue);
 	std::string aValue = std::to_string((int)acceptValue);
@@ -1100,16 +1102,16 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 		}
 	}
 
-	drawAxis(1, eSpec, pSpace, Pointing, xAxes[Pointing], yAxes[Pointing], pointing);
+	drawAxis(1, eSpec, pSpace, Pointing, xAxes[Pointing], yAxes[Pointing], verticalPointingAngle);
 
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 1, 1, (int)(spX / spY));
 	pltimshow(imA, 1, "");
-	drawAxis(1, eSpec, pSpace, LowEnergy, xAxes[LowEnergy], yAxes[LowEnergy], pointing);
+	drawAxis(1, eSpec, pSpace, LowEnergy, xAxes[LowEnergy], yAxes[LowEnergy], verticalPointingAngle);
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 1, 1, 1, (int)(spX / spY));
 	pltimshow(imB, 1, "");
-	drawAxis(1, eSpec, pSpace, HighEnergy, xAxes[HighEnergy], yAxes[HighEnergy], pointing);
+	drawAxis(1, eSpec, pSpace, HighEnergy, xAxes[HighEnergy], yAxes[HighEnergy], verticalPointingAngle);
 	plt::axis("off");
 	plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
 	plt::draw();
