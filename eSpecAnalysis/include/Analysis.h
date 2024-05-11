@@ -278,6 +278,21 @@ void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>
  * @param verticalPointingAngle The angle in mrad of the peak's y value on the pointing screen
  */
 void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpointSurfaces & pSpace, const ScreenName& screen, std::vector<double>& xAxis, std::vector<double>& yAxis, double verticalPointingAngle) {
+}
+
+/**
+ * @brief Converts axes of a screen from spatial (mm) into angle or energy
+ *
+ * For Pointing, that's x-axis and y-axis to angle in mrad
+ * For LowEnergy and HighEnergy, that's x-axis to energy in MeV and y-axis to angle in mrad
+ * 
+ * @param xAxis The x-axis in millimeter.
+ * @param yAxis The y-axis in millimeter.
+ * @param screen Which screen this is.
+ * @param pSpace The trajectory endpoint surfaces.
+ * @param eSpec The spectrometer.
+ */
+void transformAxes(std::vector<double>& xAxis, std::vector<double>& yAxis, const ScreenName& screen, trajectoryEndpointSurfaces& pSpace, double verticalPointingAngle, spectrometer& eSpec) {
 	std::vector<double> pixelX, pixelY;
 	int Nx = (int)xAxis.size();
 	int Ny = (int)yAxis.size();
@@ -294,605 +309,48 @@ void drawAxis(bool convertToEnergyAndAngle, spectrometer& eSpec, trajectoryEndpo
 		return countT++;
 		});
 
-	if (!convertToEnergyAndAngle) {
-		std::vector<double> xAxisTickLocations, yAxisTickLocations;
-		double value, eval, xZero, yZero;
-		int xTickStart, yTickStart;
-		eval = 0.0;
-		FE1DInterp(xAxis, pixelX, eval, xZero);
-		FE1DInterp(yAxis, pixelY, eval, yZero);
 
-		xAxisTickLocations.push_back(xZero);
-		bool loop = 1;
-		while (loop) {
-			eval = eval - 5.0;
-			FE1DInterp(xAxis, pixelX, eval, value);
-			value = round(value * 10.0) / 10.0;
-			if (value > 0 && value < Nx) {
-				xAxisTickLocations.push_back(value);
-			}
-			else {
-				loop = 0;
-			}
+	// convert axes representing angles into angle values in mrad
+	int warning = 0;
+	std::vector<double> mRadX = xAxis;
+	std::vector<double> mRadY = yAxis;
+	mRadAxis(eSpec, screen, mRadX, mRadY);
+
+	// convert axes representing energies into energy values in MeV
+	if (screen == LowEnergy || screen == HighEnergy)  {
+
+		int NE = (int)pSpace.getEnergyAxis(screen).size();
+		int indexStart, indexEnd;
+		// screenPos is the trajectory endpoint values for angle = verticalPointingAngle
+		std::vector<double> screenPos;
+		
+		std::vector<double> EnAxis = pSpace.getEnergyAxis(screen);
+		std::vector<double> PtAxis = pSpace.getPointingAxis(screen);
+		std::vector<std::vector<double>> pS = pSpace.getTrajectoryEndpointSurface(screen);
+		
+
+		double ptMax, ptMin, enMin, enMax;
+		double ptEval, xEval;
+
+		ptMax = std::max(PtAxis.front(), PtAxis.back());
+		ptMin = std::min(PtAxis.front(), PtAxis.back());
+		enMax = std::max(EnAxis.front(), EnAxis.back());
+		enMin = std::min(EnAxis.front(), EnAxis.back());
+		double dE = abs(EnAxis[1] - EnAxis[0]);
+		screenPos.resize(NE, 0.0);
+
+		ptEval = std::clamp(verticalPointingAngle, ptMin, ptMax);
+
+		// get screen x position in mm for each energy value in pS for given 
+		// vertical pointing angle
+		for (int i = 0; i < NE; i++) {
+			FE1DInterp(PtAxis, pS[i], ptEval, screenPos[i]);
 		}
-		eval = 0.0;
-		loop = 1;
-		while (loop) {
-			eval = eval + 5.0;
-			FE1DInterp(xAxis, pixelX, eval, value);
-			value = round(value * 10.0) / 10.0;
-			if (value > 0 && value < Nx) {
-				xAxisTickLocations.insert(xAxisTickLocations.begin(), value);
-			}
-			else {
-				loop = 0;
-			}
-		}
-		xTickStart = (int)(eval - 5.0);
-		Nx = (int)xAxisTickLocations.size();
 
-		eval = 0.0;
-		yAxisTickLocations.push_back(yZero);
-		loop = 1;
-		while (loop) {
-			eval = eval - 5.0;
-			FE1DInterp(yAxis, pixelY, eval, value);
-			value = round(value * 10.0) / 10.0;
-			if (value > 0 && value < Ny) {
-				yAxisTickLocations.push_back(value);
-			}
-			else {
-				loop = 0;
-			}
-		}
-		eval = 0.0;
-		loop = 1;
-		while (loop) {
-			eval = eval + 5.0;
-			FE1DInterp(yAxis, pixelY, eval, value);
-			value = round(value * 10.0) / 10.0;
-			if (value > 0 && value < Ny) {
-				yAxisTickLocations.insert(yAxisTickLocations.begin(), value);
-			}
-			else {
-				loop = 0;
-			}
-		}
-		yTickStart = (int)(eval - 5.0);
-		Ny = (int)yAxisTickLocations.size();
-
-		std::vector<double> plotX, plotY;
-		plotX.resize(2, 0.0);
-		plotY.resize(2, 0.0);
-		if (screen == Pointing) {
-			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
-			for (int i = 0; i < Nx; i++) {
-				plotX[0] = xAxisTickLocations[i];
-				plotX[1] = xAxisTickLocations[i];
-				plotY[0] = yZero - 10;
-				plotY[1] = yZero + 10;
-				plt::plot(plotX, plotY, { {"color","w"} });
-				if (xTickStart - 5 * i != 0) {
-					//plt::text(xAxisTickLocations[i] - 10, yZero + 25, std::to_string(xTickStart - 5 * i));
-					if ((xTickStart - 5 * i) >= 0) {
-						if ((xTickStart - 5 * i) > 0) {
-							if ((xTickStart - 5 * i) < 10) {
-								plt::text(xAxisTickLocations[i] - 30, yZero + 50, " 0" + std::to_string(xTickStart - 5 * i));
-							}
-							else {
-								plt::text(xAxisTickLocations[i] - 30, yZero + 50, " " + std::to_string(xTickStart - 5 * i));
-							}
-						}
-						else {
-							plt::text(xAxisTickLocations[i] - 30, yZero + 50, " 00");
-						}
-
-					}
-					else {
-						if ((xTickStart - 5 * i) <= -10) {
-							plt::text(xAxisTickLocations[i] - 30, yZero + 50, std::to_string(xTickStart - 5 * i));
-						}
-						else {
-							plt::text(xAxisTickLocations[i] - 30, yZero + 50, "-0" + std::to_string(abs(xTickStart - 5 * i)));
-						}
-					}
-				}
-			}
-			for (int i = 0; i < Ny; i++) {
-				plotX[0] = xZero - 10;
-				plotX[1] = xZero + 10;
-				plotY[0] = yAxisTickLocations[i];
-				plotY[1] = yAxisTickLocations[i];
-				plt::plot(plotX, plotY, { {"color","w"} });
-				if (yTickStart - 5 * i != 0) {
-					//plt::text(xZero + 25, yAxisTickLocations[i] + 5, std::to_string(yTickStart - 5 * i));
-					if ((yTickStart - 5 * i) >= 0) {
-						if ((yTickStart - 5 * i) > 0) {
-							if ((yTickStart - 5 * i) < 10) {
-								plt::text(xZero + 25, yAxisTickLocations[i] + 10, " 0" + std::to_string(yTickStart - 5 * i));
-							}
-							else {
-								plt::text(xZero + 25, yAxisTickLocations[i] + 10, " " + std::to_string(yTickStart - 5 * i));
-							}
-						}
-						else {
-							plt::text(xZero + 25, yAxisTickLocations[i] + 10, " 00");
-						}
-
-					}
-					else {
-						if ((yTickStart - 5 * i) <= -10) {
-							plt::text(xZero + 25, yAxisTickLocations[i] + 10, std::to_string(yTickStart - 5 * i));
-						}
-						else {
-							plt::text(xZero + 25, yAxisTickLocations[i] + 10, "-0" + std::to_string(abs(yTickStart - 5 * i)));
-						}
-					}
-				}
-			}
-			plotX[0] = 0;
-			plotX[1] = (int)xAxis.size() - 1;
-			plotY[0] = yZero;
-			plotY[1] = yZero;
-			plt::plot(plotX, plotY, { {"color","w"} });
-			plotX[0] = xZero;
-			plotX[1] = xZero;
-			plotY[0] = 0;
-			plotY[1] = (int)yAxis.size() - 1;
-			plt::plot(plotX, plotY, { {"color","w"} });
-		}
-		else { // screen is LowEnergy or HighEnergy
-			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
-			double locationX, locationY;
-			for (int i = 1; i < Nx; i++) {
-				plotX[0] = xAxisTickLocations[i];
-				plotX[1] = xAxisTickLocations[i];
-				plotY[0] = yAxisTickLocations[0];
-				plotY[1] = 0;
-				plt::plot(plotX, plotY, { {"color","w"} });
-				locationY = 35;
-				if ((xTickStart - 5 * i) % 10 == 0) {
-					if ((xTickStart - 5 * i) == 0) {
-						plt::text(xAxisTickLocations[i] - 15, locationY, "00");
-					}
-					else {
-						plt::text(xAxisTickLocations[i] - 15, locationY, std::to_string(xTickStart - 5 * i));
-					}
-				}
-			}
-			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"} });
-			for (int i = 0; i < Ny; i++) {
-				plotX[0] = xAxisTickLocations[0];
-				plotX[1] = 0;
-				plotY[0] = yAxisTickLocations[i];
-				plotY[1] = yAxisTickLocations[i];
-				plt::plot(plotX, plotY, { {"color","w"} });
-				locationX = -35;
-				if ((yTickStart - 5 * i) >= 0) {
-					if ((yTickStart - 5 * i) > 0) {
-						if ((yTickStart - 5 * i) < 10) {
-							plt::text(locationX, yAxisTickLocations[i] + 5, " 0" + std::to_string(yTickStart - 5 * i));
-						}
-						else {
-							plt::text(locationX, yAxisTickLocations[i] + 5, " " + std::to_string(yTickStart - 5 * i));
-						}
-					}
-					else {
-						plt::text(locationX, yAxisTickLocations[i] + 5, " 00");
-					}
-					
-				}
-				else {
-					if ((yTickStart - 5 * i) <= -10) {
-						plt::text(locationX, yAxisTickLocations[i] + 5, std::to_string(yTickStart - 5 * i));
-					}
-					else {
-						plt::text(locationX, yAxisTickLocations[i] + 5, "-0" + std::to_string(abs(yTickStart - 5 * i)));
-					}
-				}
-				
-			}
-			plotX[0] = 0;
-			plotX[1] = (int)xAxis.size() - 1;
-			plotY[0] = yAxisTickLocations[0];
-			plotY[1] = yAxisTickLocations[0];
-			plt::plot(plotX, plotY, { {"color","w"} });
-			plotX[0] = xAxisTickLocations[0];
-			plotX[1] = xAxisTickLocations[0];
-			plotY[0] = 0;
-			plotY[1] = (int)yAxis.size() - 1;
-			plt::plot(plotX, plotY, { {"color","w"} });
-		}
-	}
-	else {  // convertToEnergyAndAngle = true
-		int warning = 0;
-		std::vector<double> mRadX = xAxis;
-		std::vector<double> mRadY = yAxis;
-		mRadAxis(eSpec, screen, mRadX, mRadY);
-
-		std::vector<double> xAxisTickLocations, yAxisTickLocations;
-		std::vector<int> xAxisTickValues;
-		double value, eval, xZero, yZero, ptMax, ptMin;
-		int xTickStart, yTickStart;
-		eval = 0.0;
-		FE1DInterp(mRadX, pixelX, eval, xZero);
-		FE1DInterp(mRadY, pixelY, eval, yZero);
-
-		ptMax = 0;
-		ptMin = 0;
-		xAxisTickLocations.push_back(xZero);
-		bool loop = 1;
-		if (screen == Pointing) {
-			while (loop) {
-				eval = eval - 5.0;
-				FE1DInterp(mRadX, pixelX, eval, value);
-				if (value > 0 && value < Nx) {
-					xAxisTickLocations.push_back(value);
-				}
-				else {
-					loop = 0;
-				}
-			}
-			eval = 0.0;
-			loop = 1;
-			while (loop) {
-				eval = eval + 5.0;
-				FE1DInterp(mRadX, pixelX, eval, value);
-				if (value > 0 && value < Nx) {
-					xAxisTickLocations.insert(xAxisTickLocations.begin(), value);
-				}
-				else {
-					loop = 0;
-				}
-			}
-			xTickStart = (int)(eval - 5.0);
-		}
-		else {  // screen is LowEnergy or HighEnergy
-			int NE = (int)pSpace.getEnergyAxis(screen).size();
-			int indexStart, indexEnd;
-			std::vector<double> screenPos;
-			std::vector<double> EnAxis = pSpace.getEnergyAxis(screen);
-			std::vector<double> PtAxis = pSpace.getPointingAxis(screen);
-			std::vector<std::vector<double>> pS = pSpace.getTrajectoryEndpointSurface(screen);
-			ptMax = std::max(PtAxis.front(), PtAxis.back());
-			ptMin = std::min(PtAxis.front(), PtAxis.back());
-			double dE = abs(EnAxis[1] - EnAxis[0]);
-			screenPos.resize(NE, 0.0);
-			if (verticalPointingAngle > ptMax) {
-				for (int i = 0; i < NE; i++) {
-					if (ptMax == PtAxis.front()) {
-						screenPos[i] = pS[i][0];
-					}
-					else {
-						screenPos[i] = pS[i].back();
-					}
-					warning = 1;
-				}
-			}
-			else {
-				if (verticalPointingAngle < ptMin) {
-					for (int i = 0; i < NE; i++) {
-						if (ptMin == PtAxis.front()) {
-							screenPos[i] = pS[i][0];
-						}
-						else {
-							screenPos[i] = pS[i].back();
-						}
-						warning = -1;
-					}
-				}
-				else {
-					for (int i = 0; i < NE; i++) {
-						FE2DInterp(EnAxis, PtAxis, pS, EnAxis[i], verticalPointingAngle, screenPos[i]);
-					}
-				}
-			}
-
-			double Elow, Ehigh;
-			double screenLow = std::min(xAxis.front(), xAxis.back());
-			double screenHigh = std::max(xAxis.front(), xAxis.back());
-			indexStart = 0;
-			indexEnd = NE - 1;
-			if (screenPos.front() >= screenLow) {
-				Elow = EnAxis.front();
-				indexStart = 0;
-			}
-			else {
-				FE1DInterp(screenPos, EnAxis, screenLow, Elow);
-				Elow = ceil(Elow / 10.0) * 10.0;
-				for (int i = 0; i < NE; i++) {
-					if (abs(Elow - EnAxis[i]) < dE) {
-						indexStart = i;
-						Elow = EnAxis[indexStart];
-						break;
-					}
-				}
-			}
-			if (screenPos.back() > screenHigh) {
-				FE1DInterp(screenPos, EnAxis, screenHigh, Ehigh);
-				Ehigh = floor(Ehigh / 10.0) * 10.0;
-				for (int i = 0; i < NE; i++) {
-					if (abs(Ehigh - EnAxis[NE - 1 - i]) < dE) {
-						indexEnd = NE - 1 - i;
-						Ehigh = EnAxis[indexEnd];
-						break;
-					}
-				}
-			}
-			else {
-				Ehigh = EnAxis.back();
-				indexEnd = NE - 1;
-			}
-			if (indexEnd - indexStart != NE - 1) {
-				std::vector<double> bufferE(EnAxis.begin() + indexStart,EnAxis.begin() + indexEnd + 1);
-				std::vector<double> bufferSP(screenPos.begin() + indexStart, screenPos.begin() + indexEnd + 1);
-				EnAxis.clear();
-				EnAxis = bufferE;
-				screenPos.clear();
-				NE = (int)EnAxis.size();
-				screenPos.resize(NE, 0.0);
-				for (int i = 0; i < NE; i++) {
-					FE1DInterp(xAxis, pixelX, bufferSP[i], screenPos[i]);
-				}
-				bufferE.clear();
-				bufferSP.clear();
-			}
-			else {
-				std::vector<double> bufferSP = screenPos;
-				for (int i = 0; i < NE; i++) {
-					FE1DInterp(xAxis, pixelX, bufferSP[i], screenPos[i]);
-				}
-				bufferSP.clear();
-			}
-			eval = Ehigh;
-
-			xAxisTickLocations.clear();
-			xAxisTickValues.clear();
-			FE1DInterp(EnAxis, screenPos, eval, value);
-			value = round(value * 10.0) / 10.0;
-			xAxisTickValues.push_back((int)eval);
-			xAxisTickLocations.push_back(value);
-			loop = 1;
-			while (loop) {
-				eval = eval - 10;
-				if (eval >= Elow) {
-					FE1DInterp(EnAxis, screenPos, eval, value);
-					value = round(value * 10.0) / 10.0;
-					if (value > 0 && value < Nx) {
-						if (abs(value - xAxisTickLocations.back()) >= 15.0) {
-							xAxisTickValues.push_back((int)eval);
-							xAxisTickLocations.push_back(value);
-						}
-					}
-					else {
-						loop = 0;
-					}
-				}
-				else {
-					loop = 0;
-				}
-			}
-			xTickStart = Ehigh;
-		}
-		Nx = (int)xAxisTickLocations.size();
-
-		eval = 0.0;
-		yAxisTickLocations.push_back(yZero);
-		loop = 1;
-		while (loop) {
-			eval = eval - 5.0;
-			FE1DInterp(mRadY, pixelY, eval, value);
-			value = round(value * 10.0) / 10.0;
-			if (value > 0 && value < Ny) {
-				yAxisTickLocations.push_back(value);
-			}
-			else {
-				loop = 0;
-			}
-		}
-		eval = 0.0;
-		loop = 1;
-		while (loop) {
-			eval = eval + 5.0;
-			FE1DInterp(mRadY, pixelY, eval, value);
-			value = round(value * 10.0) / 10.0;
-			if (value > 0 && value < Ny) {
-				yAxisTickLocations.insert(yAxisTickLocations.begin(), value);
-			}
-			else {
-				loop = 0;
-			}
-		}
-		yTickStart = (int)(eval - 5.0);
-		Ny = (int)yAxisTickLocations.size();
-
-		std::vector<double> plotX, plotY;
-		plotX.resize(2, 0.0);
-		plotY.resize(2, 0.0);
-		if (screen == Pointing) {
-			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
-			for (int i = 0; i < Nx; i++) {
-				plotX[0] = xAxisTickLocations[i];
-				plotX[1] = xAxisTickLocations[i];
-				plotY[0] = yZero - 25;
-				plotY[1] = yZero + 25;
-				plt::plot(plotX, plotY, { {"color","w"} });
-				if (xTickStart - 5 * i != 0) {
-					if ((xTickStart - 5 * i) >= 0) {
-						if ((xTickStart - 5 * i) > 0) {
-							if ((xTickStart - 5 * i) < 10) {
-								plt::text(xAxisTickLocations[i] - 50, yZero + 75, " 0" + std::to_string(xTickStart - 5 * i));
-							}
-							else {
-								plt::text(xAxisTickLocations[i] - 50, yZero + 75, " " + std::to_string(xTickStart - 5 * i));
-							}
-						}
-						else {
-							plt::text(xAxisTickLocations[i] - 50, yZero + 75, " 00");
-						}
-
-					}
-					else {
-						if ((xTickStart - 5 * i) <= -10) {
-							plt::text(xAxisTickLocations[i] - 50, yZero + 75, std::to_string(xTickStart - 5 * i));
-						}
-						else {
-							plt::text(xAxisTickLocations[i] - 50, yZero + 75, "-0" + std::to_string(abs(xTickStart - 5 * i)));
-						}
-					}
-				}
-			}
-			for (int i = 0; i < Ny; i++) {
-				plotX[0] = xZero - 25;
-				plotX[1] = xZero + 25;
-				plotY[0] = yAxisTickLocations[i];
-				plotY[1] = yAxisTickLocations[i];
-				plt::plot(plotX, plotY, { {"color","w"} });
-				if (yTickStart - 5 * i != 0) {
-					if ((yTickStart - 5 * i) >= 0) {
-						if ((yTickStart - 5 * i) > 0) {
-							if ((yTickStart - 5 * i) < 10) {
-								plt::text(xZero + 40, yAxisTickLocations[i] + 15, " 0" + std::to_string(yTickStart - 5 * i));
-							}
-							else {
-								plt::text(xZero + 40, yAxisTickLocations[i] + 15, " " + std::to_string(yTickStart - 5 * i));
-							}
-						}
-						else {
-							plt::text(xZero + 40, yAxisTickLocations[i] + 15, " 00");
-						}
-
-					}
-					else {
-						if ((yTickStart - 5 * i) <= -10) {
-							plt::text(xZero + 40, yAxisTickLocations[i] + 15, std::to_string(yTickStart - 5 * i));
-						}
-						else {
-							plt::text(xZero + 40, yAxisTickLocations[i] + 15, "-0" + std::to_string(abs(yTickStart - 5 * i)));
-						}
-					}
-				}
-			}
-			plotX[0] = 0;
-			plotX[1] = (int)xAxis.size() - 1;
-			plotY[0] = yZero;
-			plotY[1] = yZero;
-			plt::plot(plotX, plotY, { {"color","w"} });
-			plotX[0] = xZero;
-			plotX[1] = xZero;
-			plotY[0] = 0;
-			plotY[1] = (int)yAxis.size() - 1;
-			plt::plot(plotX, plotY, { {"color","w"} });
-		}
-		else {
-			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
-			plotX[0] = 0;
-			plotX[1] = (int)xAxis.size() - 1;
-			double locationX, locationY;
-			if (screen == 1) {
-				plotY[0] = yAxisTickLocations[1];
-				plotY[1] = yAxisTickLocations[1];
-				locationY = 25;
-			}
-			else {
-				plotY[0] = yAxisTickLocations[0];
-				plotY[1] = yAxisTickLocations[0];
-				locationY = 20;
-			}
-			plt::plot(plotX, plotY, { {"color","w"} });
-			if (screen == 1) {
-				plotY[1] = yAxisTickLocations[1] - 20;
-			}
-			else {
-				plotY[1] = yAxisTickLocations[0] - 20;
-			}
-			int lastLabel = 1;
-			for (int i = 1; i < Nx; i++) {
-				plotX[0] = xAxisTickLocations[i];
-				plotX[1] = xAxisTickLocations[i];
-				plt::plot(plotX, plotY, { {"color","w"} });
-				if (xAxisTickValues[i] % 20 == 0) {
-					if (i > 1){
-						if (abs(xAxisTickLocations[i] - xAxisTickLocations[lastLabel]) > 60) {
-							plt::text(xAxisTickLocations[i] - 20, locationY, std::to_string(xAxisTickValues[i]));
-							lastLabel = i;
-						}
-					}
-					else {
-						plt::text(xAxisTickLocations[i] - 20, locationY, std::to_string(xAxisTickValues[i]));
-					}
-				}
-				else {
-					if (i == Nx - 1) {
-						plt::text(xAxisTickLocations[i] - 20, locationY, std::to_string(xAxisTickValues[i]));
-					}
-				}
-			}
-			if (warning == 1) {
-				std::string pValue = std::to_string(ptMax);
-				pValue = pValue.substr(0, 4);
-				plt::text((int)(0.775 * xAxis.size()), (int)(0.9 * yAxis.size()), std::string("Out of Range! Axis for ") + pValue + std::string(" mrad"));
-			}
-			else {
-				if (warning == -1) {
-					std::string pValue = std::to_string(ptMin);
-					pValue = pValue.substr(0, 5);
-					plt::text((int)(0.775 * xAxis.size()), (int)(0.9 * yAxis.size()), std::string("Out of Range! Axis for ") + pValue + std::string(" mrad"));
-				}
-			}
-			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"} });
-			double dx = (int)xAxis.size();
-			for (int i = 0; i < Nx; i++) {
-				value = abs(xAxisTickLocations[i] - 25);
-				if (value < dx) {
-					dx = value;
-					plotX[0] = xAxisTickLocations[i];
-					plotX[1] = xAxisTickLocations[i];
-				}
-			}
-			if (dx > 60) {
-				plotX[0] = 25;
-				plotX[1] = 25;
-			}
-			plotY[0] = 0;
-			plotY[1] = (int)yAxis.size() - 1;
-			plt::plot(plotX, plotY, { {"color","w"} });
-			plotX[1] = 0;
-			for (int i = 0; i < Ny; i++) {
-				plotY[0] = yAxisTickLocations[i];
-				plotY[1] = yAxisTickLocations[i];
-				if (yTickStart - 5 * i > -15 && yTickStart - 5 * i < 15) {
-					plt::plot(plotX, plotY, { {"color","w"} });
-				}
-				locationX = -45;
-				if ((yTickStart - 5 * i) >= 0) {
-					if ((yTickStart - 5 * i) > 0) {
-						if ((yTickStart - 5 * i) < 15) {
-							if ((yTickStart - 5 * i) < 10) {
-								plt::text(locationX, yAxisTickLocations[i] + 5, " 0" + std::to_string(yTickStart - 5 * i));
-							}
-							else {
-								plt::text(locationX, yAxisTickLocations[i] + 5, " " + std::to_string(yTickStart - 5 * i));
-							}
-						}
-					}
-					else {
-						plt::text(locationX, yAxisTickLocations[i] + 5, " 00");
-					}
-
-				}
-				else {
-					if ((yTickStart - 5 * i) <= -10) {
-						if ((yTickStart - 5 * i) > -15){
-							plt::text(locationX, yAxisTickLocations[i] + 5, std::to_string(yTickStart - 5 * i));
-						}
-					}
-					else {
-						plt::text(locationX, yAxisTickLocations[i] + 5, "-0" + std::to_string(abs(yTickStart - 5 * i)));
-					}
-				}
-
-			}
+		// get energy corresponding to each xAxis value 
+		for (int i = 0; i < NE; i++) {
+			xEval = std::clamp(xAxis[i], enMin, enMax);
+			FE1DInterp(screenPos, EnAxis, xEval, xAxis[i]);
 		}
 	}
 }
