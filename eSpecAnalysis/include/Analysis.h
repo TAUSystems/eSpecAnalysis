@@ -1178,7 +1178,18 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 	fileCount = 15;
 
 	if (fileCount == 15) {
-		drawPointingAnalysis(eSpec, pSpace, xAxes, yAxes, pxX, pxY, imP, imA, imB, filepath_spectrum);
+		// drawPointingAnalysis(eSpec, pSpace, xAxes, yAxes, pxX, pxY, imP, imA, imB, filepath_spectrum);
+		
+		double verticalPointingAngle;
+		getPointing(imP, xAxes[Pointing], yAxes[Pointing], pxX, pxY, eSpec, verticalPointingAngle);
+
+		transformAxes(xAxes[LowEnergy], yAxes[LowEnergy], LowEnergy, pSpace, verticalPointingAngle, eSpec);
+		transformAxes(xAxes[HighEnergy], yAxes[HighEnergy], HighEnergy, pSpace, verticalPointingAngle, eSpec);
+		transformAxes(xAxes[Pointing], yAxes[Pointing], Pointing, pSpace, verticalPointingAngle, eSpec);
+
+		saveCroppedTransformedImage(imA, filepath_eScreenA);
+		saveCroppedTransformedImage(imB, filepath_eScreenB);
+		saveCroppedTransformedImage(imP, filepath_ePointing);
 	}
 	else {
 		switch (fileCount) {
