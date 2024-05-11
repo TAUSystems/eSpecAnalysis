@@ -1273,14 +1273,14 @@ public:
  * @class trajectoryEndpointSurfaces
  * @brief Stores calculated landing position on screens of electrons with given energy and angle.
  * 
- * Contains a 2 x n x m array showing the position in millimeters along the x-axis
+ * Contains a 2 x n_energy x n_angle array showing the position in millimeters along the x-axis
  * of LowEnergy and HighEnergy screens where an electron with given energy and vertical 
  * transverse angle should land, along with the corresponding energy and angle axes. 
  * 
  */
 class trajectoryEndpointSurfaces {
 
-    // two 2D arrays where x-axis is energy, y-axis is pointing angle
+    // two 2D arrays of energy (outer) x pointing (inner)
     std::vector<std::vector<std::vector<double>>> trajectoryEndpoint;
     // two linear energy axis vectors in MeV, for lowenergy and highenergy
     std::vector<std::vector<double>> energyAxis;
