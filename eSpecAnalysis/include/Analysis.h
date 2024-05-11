@@ -266,6 +266,66 @@ void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>
 	}
 }
 
+
+void getPointing(imageBW& pointingImage, 
+				  std::vector<double>& xAxis, std::vector<double>& yAxis,
+				  std::vector<double>& pxX, std::vector<double>& pxY,
+				  spectrometer& eSpec, 
+				  double verticalPointingAngle
+				 ) {
+	// peak corresponds to the whole image, and peakBound only to that within
+	// the desired max transverse angle
+	std::vector<int> peak, peakBound;
+
+	std::vector<double> xAxisPointing, yAxisPointing;
+	xAxisPointing = xAxis;
+	yAxisPointing = yAxis;
+
+	mRadAxis(eSpec, Pointing, xAxisPointing, yAxisPointing);
+	// the transverse angle in mrad along the Pointing screen y-axis at the peak
+	double verticalPointingAngle;
+	double eval, dbuffer;
+	
+	// acceptanceBound is the pixel values on the pointing screen corresponding 
+	// to the desired maximum transverse angles, in mrad, as [xmin, xmax, ymin, ymax]
+	std::vector<int> acceptanceBound;
+	acceptanceBound.resize(4, 0);
+	eval = -1.0 * eSpec.angleMax(0);
+	FE1DInterp(xAxisPointing, pxX, eval, dbuffer);
+	acceptanceBound[0] = (int)round(dbuffer);
+	eval = eSpec.angleMax(0);
+	FE1DInterp(xAxisPointing, pxX, eval, dbuffer);
+	acceptanceBound[1] = (int)round(dbuffer);
+	eval = -1.0 * eSpec.angleMax(1);
+	FE1DInterp(yAxisPointing, pxY, eval, dbuffer);
+	acceptanceBound[2] = (int)round(dbuffer);
+	eval = eSpec.angleMax(1);
+	FE1DInterp(yAxisPointing, pxY, eval, dbuffer);
+	acceptanceBound[3] = (int)round(dbuffer);
+
+	// analyze Pointing image
+	imageBW imBuffer;
+	int maxValue = 0;
+	bool flagP = 0;
+	bool flagB = 0;
+	// peakValue and totalValue correspond to the whole image, and peakValueB 
+	// and acceptValue only to that within the desired max transverse angle
+	double peakValue, peakValueB, totalValue, acceptValue;
+	pointingImage.crop(acceptanceBound, imBuffer);
+	findSignalPeak(imBuffer, peakBound, peakValueB);
+	findSignalPeak(pointingImage, peak, peakValue);
+	// put peakBound back into the whole image coordinates
+	peakBound[0] = peakBound[0] + acceptanceBound[0];
+	peakBound[1] = peakBound[1] + acceptanceBound[2];
+
+	// get peak y location in mrad
+	eval = (double)((double)pointingImage.sizeY() - 1 - peakBound[1]);
+	FE1DInterp(pxY, yAxisPointing, eval, verticalPointingAngle);
+
+}
+
+
+
 /**
  * Draws the axis on the screen.
  *
