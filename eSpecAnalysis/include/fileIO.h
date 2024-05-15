@@ -22,6 +22,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <opencv2/imgcodecs/imgcodecs.hpp>
 
 #include <thread>
 #include <filesystem>
@@ -594,6 +595,36 @@ void resizeImage(double& scaling, std::string& inputFile, std::string& outputFil
     height = (int)(round((double)buffer.size().height * scaling));
     cv::resize(buffer, output, cv::Size(width, height), cv::INTER_CUBIC);
     cv::imwrite(outputFile, output);
+}
+
+void saveCroppedTransformedImage(imageBW& image, std::vector<double>& xAxis, std::vector<double>& yAxis, std::string filepath) {
+	std::vector<cv::Mat> tiff_pages;
+    cv::Mat imageMat = cv::Mat::zeros(image.sizeY(), image.sizeX(), CV_64F);
+    cv::Mat xAxisMat = cv::Mat::zeros(1, (int)xAxis.size(), CV_64F);
+    cv::Mat yAxisMat = cv::Mat::zeros(1, (int)yAxis.size(), CV_64F);
+    
+    #pragma omp parallel for
+        for (int i = 0; i < image.sizeX(); i++) {
+            for (int j = 0; j < image.sizeY(); j++) {
+                imageMat.at<double>(j, i) = image.value(i, j);
+            }
+        }
+
+    #pragma omp parallel for
+        for (int i = 0; i < (int)xAxis.size(); i++) {
+            xAxisMat.at<double>(0, i) = xAxis[i];
+        }
+
+    #pragma omp parallel for
+        for (int i = 0; i < (int)yAxis.size(); i++) {
+            yAxisMat.at<double>(0, i) = yAxis[i];
+        }
+
+    tiff_pages.push_back(imageMat);
+    tiff_pages.push_back(xAxisMat);
+    tiff_pages.push_back(yAxisMat);
+
+    cv::imwrite(filepath, tiff_pages);
 }
 
 enum ScreenName {

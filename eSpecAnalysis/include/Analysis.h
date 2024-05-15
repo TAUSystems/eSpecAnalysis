@@ -702,9 +702,9 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 		transformAxes(xAxes[HighEnergy], yAxes[HighEnergy], HighEnergy, pSpace, verticalPointingAngle, eSpec);
 		transformAxes(xAxes[Pointing], yAxes[Pointing], Pointing, pSpace, verticalPointingAngle, eSpec);
 
-		saveCroppedTransformedImage(imA, filepath_eScreenA);
-		saveCroppedTransformedImage(imB, filepath_eScreenB);
-		saveCroppedTransformedImage(imP, filepath_ePointing);
+		saveCroppedTransformedImage(imA, xAxes[LowEnergy], yAxes[LowEnergy], filepath_eScreenA);
+		saveCroppedTransformedImage(imB, xAxes[HighEnergy], yAxes[HighEnergy], filepath_eScreenB);
+		saveCroppedTransformedImage(imP, xAxes[Pointing], yAxes[Pointing], filepath_ePointing);
 	}
 	else {
 		switch (fileCount) {
