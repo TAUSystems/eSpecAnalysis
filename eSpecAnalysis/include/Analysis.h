@@ -378,7 +378,7 @@ void transformAxes(std::vector<double>& xAxis, std::vector<double>& yAxis, const
 	// convert axes representing energies into energy values in MeV
 	if (screen == LowEnergy || screen == HighEnergy)  {
 
-		int NE = (int)pSpace.getEnergyAxis(screen).size();
+		int NE;
 		int indexStart, indexEnd;
 		// screenPos is the trajectory endpoint values for angle = verticalPointingAngle
 		std::vector<double> screenPos;
@@ -396,17 +396,19 @@ void transformAxes(std::vector<double>& xAxis, std::vector<double>& yAxis, const
 		enMax = std::max(EnAxis.front(), EnAxis.back());
 		enMin = std::min(EnAxis.front(), EnAxis.back());
 		double dE = abs(EnAxis[1] - EnAxis[0]);
-		screenPos.resize(NE, 0.0);
 
 		ptEval = std::clamp(verticalPointingAngle, ptMin, ptMax);
 
 		// get screen x position in mm for each energy value in pS for given 
 		// vertical pointing angle
+		NE = (int)pSpace.getEnergyAxis(screen).size();
+		screenPos.resize(NE, 0.0);
 		for (int i = 0; i < NE; i++) {
 			FE1DInterp(PtAxis, pS[i], ptEval, screenPos[i]);
 		}
 
 		// get energy corresponding to each xAxis value 
+		NE = (int)xAxis.size();
 		for (int i = 0; i < NE; i++) {
 			xEval = std::clamp(xAxis[i], enMin, enMax);
 			FE1DInterp(screenPos, EnAxis, xEval, xAxis[i]);
