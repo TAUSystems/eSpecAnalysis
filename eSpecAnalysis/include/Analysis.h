@@ -283,7 +283,6 @@ void getPointing(imageBW& pointingImage,
 
 	mRadAxis(eSpec, Pointing, xAxisPointing, yAxisPointing);
 	// the transverse angle in mrad along the Pointing screen y-axis at the peak
-	double verticalPointingAngle;
 	double eval, dbuffer;
 	
 	// acceptanceBound is the pixel values on the pointing screen corresponding 
@@ -459,8 +458,6 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
 	medianFilter(output, 2);
 
 }
-
-
 
 /**
  * @brief Computes the spectrum and draws it.
