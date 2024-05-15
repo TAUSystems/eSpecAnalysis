@@ -228,12 +228,12 @@ void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rule
  * 
  * @param eSpec The spectrometer object.
  * @param screen The screen to find the axis/axes of.
- * @param rulerX The x-axis that is converted inplace to angle in mrad
- * @param rulerY The y-axis that is converted inplace to angle in mrad
+ * @param xAxis The x-axis that is converted inplace to angle in mrad
+ * @param yAxis The y-axis that is converted inplace to angle in mrad
  */
-void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>& rulerX, std::vector<double>& rulerY) {
-	int Nx = (int)rulerX.size();
-	int Ny = (int)rulerY.size();
+void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>& xAxis, std::vector<double>& yAxis) {
+	int Nx = (int)xAxis.size();
+	int Ny = (int)yAxis.size();
 	int N = std::max(Nx, Ny);
 
 	double x, y, z, phi, theta;
@@ -243,25 +243,25 @@ void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>
 	if (screen == Pointing) {
 		for (int i = 0; i < N; i++) {
 			if (i < Nx) {
-				z = eSpec.z(0) + rulerX[i] * std::cos(phi);
-				x = -(rulerX[i] * std::sin(phi) - eSpec.x(0));
+				z = eSpec.z(0) + xAxis[i] * std::cos(phi);
+				x = -(xAxis[i] * std::sin(phi) - eSpec.x(0));
 
-				rulerX[i] = 1000.0 * std::atan2(x,z);
+				xAxis[i] = 1000.0 * std::atan2(x,z);
 			}
 			if (i < Ny) {
-				z = eSpec.z(0) + rulerY[i] * std::sin(theta);
-				y =  -(rulerY[i] * std::cos(theta) - eSpec.y(0));
+				z = eSpec.z(0) + yAxis[i] * std::sin(theta);
+				y =  -(yAxis[i] * std::cos(theta) - eSpec.y(0));
 
-				rulerY[i] = 1000.0 * std::atan2(y,z);
+				yAxis[i] = 1000.0 * std::atan2(y,z);
 			}
 		}
 	}
 	else {
 		for (int i = 0; i < Ny; i++) {
-			z = eSpec.z(0) + rulerY[i] * std::sin(phi) + rulerX[0] * std::cos(theta);
-			y = rulerY[i] * std::cos(phi) - eSpec.x(0);
+			z = eSpec.z(0) + yAxis[i] * std::sin(phi) + xAxis[0] * std::cos(theta);
+			y = yAxis[i] * std::cos(phi) - eSpec.x(0);
 
-			rulerY[i] = 1000.0 * std::atan2(y, z);
+			yAxis[i] = 1000.0 * std::atan2(y, z);
 		}
 	}
 }
@@ -371,9 +371,7 @@ void transformAxes(std::vector<double>& xAxis, std::vector<double>& yAxis, const
 
 	// convert axes representing angles into angle values in mrad
 	int warning = 0;
-	std::vector<double> mRadX = xAxis;
-	std::vector<double> mRadY = yAxis;
-	mRadAxis(eSpec, screen, mRadX, mRadY);
+	mRadAxis(eSpec, screen, xAxis, yAxis);
 
 	// convert axes representing energies into energy values in MeV
 	if (screen == LowEnergy || screen == HighEnergy)  {
@@ -382,11 +380,11 @@ void transformAxes(std::vector<double>& xAxis, std::vector<double>& yAxis, const
 		int indexStart, indexEnd;
 		// screenPos is the trajectory endpoint values for angle = verticalPointingAngle
 		std::vector<double> screenPos;
-		
+
 		std::vector<double> EnAxis = pSpace.getEnergyAxis(screen);
 		std::vector<double> PtAxis = pSpace.getPointingAxis(screen);
 		std::vector<std::vector<double>> pS = pSpace.getTrajectoryEndpointSurface(screen);
-		
+
 
 		double ptMax, ptMin, enMin, enMax;
 		double ptEval, xEval;
