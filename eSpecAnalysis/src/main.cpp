@@ -44,8 +44,17 @@ int main() {
         }
         break;
     case 2:
-        std::cout << "\nCurrently Not Implemented\n";
-        readCalibration(pathCalibration, H, xRuler, yRuler);
+        screen = 1;
+        std::cout << "\nManual Analysis with Pointing Screen\n";
+        if (stat(eSpec.screenPath(screen).c_str(), &sb) == 0) {
+            readCalibration(pathCalibration, H, xRuler, yRuler);
+            paramSpace pSpace;
+            pSpace.loadMap(pathCalibration);
+            pointingModeManual(rate, timeout, eSpec, calibration, pSpace, H, xRuler, yRuler);
+        }
+        else {
+            std::cout << "\nData Path Not Found\n";
+        }
         break;
     case 3:
         std::cout << "\nCurrently Not Implemented\n";

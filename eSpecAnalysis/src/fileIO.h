@@ -241,6 +241,19 @@ public:
                 }
             }
     }
+    
+    void copy(imageBW& output) {
+        int Nx, Ny;
+        Nx = size[0];
+        Ny = size[1];
+        output.resize(Nx, Ny);
+        #pragma omp parallel for
+        for (int i = 0; i < Nx; i++) {
+            for (int j = 0; j < Ny; j++) {
+                output.definePixel(i, j, data[i][j]);
+            }
+        }
+    }
 };
 
 std::string getDate() {
@@ -396,25 +409,18 @@ void scanNewFile(std::string path, std::vector<std::string>& refList, std::vecto
     nUpdate = (int)updateList.size();
     updateStatus.clear();
     
-    if (nUpdate > nRef) {
-        updateStatus.resize(nUpdate, 1);
-        #pragma omp parallel for
-            for (int i = 0; i < nUpdate; i++) {
-                for (int j = 0; j < nRef; j++) {
-                    if (updateList[i].compare(refList[j]) == 0) {
-                        updateStatus[i] = 0;
-                        break;
-                    }
+    updateStatus.resize(nUpdate, 1);
+    #pragma omp parallel for
+        for (int i = 0; i < nUpdate; i++) {
+            for (int j = 0; j < nRef; j++) {
+                if (updateList[i].compare(refList[j]) == 0) {
+                    updateStatus[i] = 0;
+                    break;
                 }
             }
-        refList.clear();
-        refList = updateList;
-    }
-    else {
-        updateStatus.resize(nUpdate, 0);
-        refList.clear();
-        refList = updateList;
-    }
+        }
+    refList.clear();
+    refList = updateList;
 }
 
 bool findFile(std::vector<std::string> list, std::string file, std::string timeStamp, int &index) {
@@ -451,7 +457,8 @@ void getImage(std::string file, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
     }
@@ -462,7 +469,8 @@ void getImage(std::string file, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer.at<double>(j, i);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
     }
@@ -476,7 +484,8 @@ void getImage(std::string file, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
     }
@@ -501,7 +510,8 @@ void getImage(cv::Mat input, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
     }
@@ -512,7 +522,8 @@ void getImage(cv::Mat input, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = input.at<double>(j, i);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
     }
@@ -526,7 +537,8 @@ void getImage(cv::Mat input, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
     }
@@ -542,13 +554,27 @@ void imgshow(imageBW image) {
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
                 double pxBuffer = image.value(i, j);
-                buffer.at<CvType<CV_64F>::type_t>(j, i) = pxBuffer;
+                int jinv = Ny - j;
+                buffer.at<CvType<CV_64F>::type_t>(jinv, i) = pxBuffer;
             }
         }
 
     cv::namedWindow(" ", cv::WINDOW_AUTOSIZE);
     cv::imshow(" ", buffer);
     cv::waitKey(0);
+}
+
+void resizeImage(double& scaling, std::string& inputFile, std::string& outputFile) {
+    cv::Mat input = cv::imread(inputFile);
+    cv::Mat buffer, output;
+    int width = input.size().width - 80;
+    int height = input.size().height;
+    buffer = input(cv::Range(0, height), cv::Range(80, width));
+    width = (int)(round((double)buffer.size().width * scaling));
+    height = (int)(round((double)buffer.size().height * scaling));
+    cv::resize(buffer, output, cv::Size(width, height), cv::INTER_CUBIC);
+    
+    cv::imwrite(outputFile, output);
 }
 
 class spectrometer {

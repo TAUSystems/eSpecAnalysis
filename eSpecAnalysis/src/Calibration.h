@@ -89,12 +89,12 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
             }
         }
     medianFilter(edge, 1);
-    /*
+    
     if (mode == 1) {
         plt::plot(edge);
         plt::show();
     }
-    */
+    
     #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             if (edge[i] > threshold) {
@@ -145,12 +145,12 @@ void findRuler(int& mode, int& screen, imageBW& image, std::vector<double>& thre
     lineOut(1, 1.0, imCrop, 1, line);
     medianFilter(line, 1);
     Contrast(threshold[0], line);
+    printf("Horizontal Threshold\n");
     if (mode == 1) {
         plt::figure;
         plt::title("Horizontal Threshold");
     }
     edgeFind1D(mode, threshold[1], line);
-
 
 
     int Nim = image.sizeX();
