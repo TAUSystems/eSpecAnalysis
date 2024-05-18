@@ -597,12 +597,25 @@ void resizeImage(double& scaling, std::string& inputFile, std::string& outputFil
     cv::imwrite(outputFile, output);
 }
 
+/**
+ * @brief Saves the final image along with the x-axis and y-axis data to a TIFF file.
+ * 
+ * The resulting TIFF file has three pages: 
+ *     the image, in units of (arbitrary) brightness per pixel
+ *     the x-axis, a 1 x N image in units of mrad for Pointing, in MeV for LowEnergy and HighEnergy
+ *     the y-axis, a M x 1 image in units of mrad
+ *
+ * @param image 
+ * @param xAxis 
+ * @param yAxis 
+ * @param filepath 
+ */
 void saveCroppedTransformedImage(imageBW& image, std::vector<double>& xAxis, std::vector<double>& yAxis, std::string filepath) {
 	std::vector<cv::Mat> tiff_pages;
     cv::Mat imageMat = cv::Mat::zeros(image.sizeY(), image.sizeX(), CV_64F);
     cv::Mat xAxisMat = cv::Mat::zeros(1, (int)xAxis.size(), CV_64F);
-    cv::Mat yAxisMat = cv::Mat::zeros(1, (int)yAxis.size(), CV_64F);
-    
+    cv::Mat yAxisMat = cv::Mat::zeros((int)yAxis.size(), 1, CV_64F);
+
     #pragma omp parallel for
         for (int i = 0; i < image.sizeX(); i++) {
             for (int j = 0; j < image.sizeY(); j++) {
@@ -616,8 +629,8 @@ void saveCroppedTransformedImage(imageBW& image, std::vector<double>& xAxis, std
         }
 
     #pragma omp parallel for
-        for (int i = 0; i < (int)yAxis.size(); i++) {
-            yAxisMat.at<double>(0, i) = yAxis[i];
+        for (int j = 0; j < (int)yAxis.size(); j++) {
+            yAxisMat.at<double>(j, 0) = yAxis[j];
         }
 
     tiff_pages.push_back(imageMat);
