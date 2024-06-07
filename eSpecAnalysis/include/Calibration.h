@@ -5,6 +5,13 @@
 
 #include "Plot.h"
 
+
+/**
+ * @brief Calculates the homography matrix using a set of source and target points.
+ * 
+ * @param points The vector of 4 target and 4 source points.
+ * @param matrixH The output homography matrix.
+ */
 void homographyMat(std::vector<cv::Point2d> points, cv::Mat& matrixH) {
     std::vector<cv::Point2d> sourcePoints;
     std::vector<cv::Point2d> targetPoints;
@@ -24,8 +31,16 @@ void homographyMat(std::vector<cv::Point2d> points, cv::Mat& matrixH) {
     matrixH = cv::findHomography(sourcePoints, targetPoints);
 }
 
+/**
+ * @brief Transforms a pixel using the given homography matrix.
+ * 
+ * @param matrixH The homography matrix.
+ * @param pixel The pixel is transformed in-place.
+ */
 void transformPixel(cv::Mat& matrixH, cv::Point3d& pixel) {
     double x, y, z;
+    
+    // calculate dot product H . pixel
     x = matrixH.at<double>(0, 0) * pixel.x + matrixH.at<double>(0, 1) * pixel.y + matrixH.at<double>(0, 2) * pixel.z;
     y = matrixH.at<double>(1, 0) * pixel.x + matrixH.at<double>(1, 1) * pixel.y + matrixH.at<double>(1, 2) * pixel.z;
     z = matrixH.at<double>(2, 0) * pixel.x + matrixH.at<double>(2, 1) * pixel.y + matrixH.at<double>(2, 2) * pixel.z;
@@ -35,10 +50,20 @@ void transformPixel(cv::Mat& matrixH, cv::Point3d& pixel) {
     pixel.z = z;
 }
 
+/**
+ * @brief Applies perspective transformation to an image using the given homography matrix.
+ * 
+ * @param input image
+ * @param matrixH The homography matrix.
+ * @param windowSize x and y window size
+ * @param output image
+ */
 void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& windowSize, imageBW& output) {
     size_t Nx = (size_t)windowSize[0];
     size_t Ny = (size_t)windowSize[1];
 
+    // cropping is not actually used! overwritten by the for loop below. 
+    // TODO: generate Nx x Ny output image another way
     std::vector<size_t> bounds;
     bounds.resize(4, 0);
     bounds[0] = 0;
@@ -74,9 +99,17 @@ void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& 
         }
 }
 
+/**
+ * @brief Finds edges in a 1D signal
+ * 
+ * @param mode Not used.
+ * @param threshold The second derivative of the input signal is thresholded to find edges.
+ * @param input A 1-D array.
+ */
 void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
     int N = (int)input.size();
 
+    // calculate the second derivative of the input signal
     std::vector<double> edge;
     edge.resize(N, 0.0);
     #pragma omp parallel for
@@ -95,6 +128,8 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
         plt::show();
     }
     */
+    
+    // threshold the second derivative to find edges
     #pragma omp parallel for
         for (int i = 0; i < N; i++) {
             if (edge[i] > threshold) {
@@ -104,6 +139,7 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
                 edge[i] = 0;
             }
         }
+    
     std::vector<double> dedge;
     dedge.resize(N, 0.0);
     #pragma omp parallel for
@@ -531,15 +567,33 @@ void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vec
     zeroPoint[1] = pxYCenter;
 }
 
-void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& zeroPoint) {
+
+/**
+ * @brief Turns rulers from pixel locations of mm marks to millimeter axis
+ *
+ * At this point, rulerX and rulerY represent the pixel locations on a calibration 
+ * image of millimeter marks, and zeroPoint is the pixel location of the 0 mark.
+ * 
+ * This function turns the rulers into vectors representing the millimeter values 
+ * of a screen in x and y directions.
+ * 
+ * @param screen 
+ * @param Nx The number of desired axis mm values in the x direction.
+ * @param Ny The number of desired axis mm values in the y direction.
+ * @param rulerX modified in-place
+ * @param rulerY modified in-place
+ * @param zeroPoint pair of pixel values of 0 mark on x and y rulers
+ */
+void pixelAxis(ScreenName screen, int Nx, int Ny, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& zeroPoint) {
     int nRx = (int)rulerX.size();
     int nRy = (int)rulerY.size();
 
+    // first write 0..nx-1 and 0..ny-1 to mmX and mmY
     int n = std::max(nRx, nRy);
     std::vector<double> mmX, mmY;
     mmX.resize(nRx, 0.0);
     mmY.resize(nRy, 0.0);
-    if (screen == 0) {
+    if (screen == Pointing) {
         for (int i = 0; i < n; i++) {
             if (i < nRx) {
                 mmX[i] = i;
@@ -560,6 +614,7 @@ void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::ve
         }
     }
 
+    // also 0..nx-1 and 0..ny-1 to pxX and pxY
     std::vector<double> resX, resY, pxX, pxY;
     resX = rulerX;
     resY = rulerY;
@@ -578,6 +633,7 @@ void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::ve
     double pxIndex, value, valueMin, valueMax, dv;
 
     
+    // calculate millimeter values for pixels between first and last ruler marks
     bool loop = 1;
     valueMin = std::min(resX.front(), resX.back());
     valueMax = std::max(resX.front(), resX.back());
@@ -594,6 +650,9 @@ void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::ve
             loop = 0;
         }
     }
+    
+    // extrapolate millimeter values for pixels outside of the first and last ruler marks
+    // until we have vector of length Nx
     loop = 1;
     dv = rulerX[1] - rulerX[0];
     pxIndex = valueMin - 1.0;
@@ -621,7 +680,7 @@ void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::ve
         }
     }
     
-
+    // same for rulerY
     loop = 1;
     valueMin = std::min(resY.front(), resY.back());
     valueMax = std::max(resY.front(), resY.back());
@@ -665,15 +724,19 @@ void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::ve
         }
     }
 
+    // linearize rulers
     linReg(pxX, rulerX);
     linReg(pxY, rulerY);
 
+    // shift rulers by zero point
+    // find millimeter value for pixel values zeroPoint
     double zPX, zPY;
     FE1DInterp(pxX, rulerX, zeroPoint[0], zPX);
     FE1DInterp(pxY, rulerY, zeroPoint[1], zPY);
     zPX = round(zPX * 1000.0) / 1000.0;
     zPY = round(zPY * 1000.0) / 1000.0;
-    if (screen == 0) {
+    // shift rulers
+    if (screen == Pointing) {
         for (int i = 0; i < N; i++) {
             if (i < Nx) {
                 rulerX[i] = (zPX - rulerX[i]);
@@ -887,15 +950,24 @@ void writeCalibration(std::string calPath, std::vector<std::vector<int>>& winRes
     output.close();
 }
 
-void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
+/**
+ * 
+ * @param calPath The path to the calibration folder, without trailing /
+ * @param homographyMatrices one for each of the three screens.
+ * @param xRuler pixel values of millimeter marks of x-axis for each of the three screens
+ * @param yRuler pixel values of millimeter marks of y-axis for each of the three screens
+ */
+void readCalibration(std::string calPath, std::vector<cv::Mat>& homographyMatrices, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
     std::string filePath = calPath + "/perspective.cache";
 
+    // winRes a (num_x, num_y) pair for each screen
     std::vector<std::vector<int>> winRes;
+    // zeroPoint, a pair of doubles for each screen
     std::vector<std::vector<double>> zP;
     winRes.clear();
     winRes.resize(3);
-    H.clear();
-    H.resize(3);
+    homographyMatrices.clear();
+    homographyMatrices.resize(3);
     zP.clear();
     zP.resize(3);
     xRuler.clear();
@@ -942,7 +1014,7 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
                 buffer[4 * n + 1] = buffer[4 * n + 1].substr(index, buffer[4 * n + 1].length());
             }
         }
-        H[n] = bufferH;
+        homographyMatrices[n] = bufferH;
 
         bool loop = 1;
         std::vector<double> ruler;
@@ -978,11 +1050,9 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
         }
         yRuler[n] = ruler;
     }
-    int screen = 0;
-    pixelAxis(screen, winRes[0][0], winRes[0][1], xRuler[0], yRuler[0], zP[0]);
-    screen = 1;
-    pixelAxis(screen, winRes[1][0], winRes[1][1], xRuler[1], yRuler[1], zP[1]);
-    screen = 2;
-    pixelAxis(screen, winRes[2][0], winRes[2][1], xRuler[2], yRuler[2], zP[2]);
+    
+    pixelAxis(Pointing, winRes[Pointing][0], winRes[Pointing][1], xRuler[Pointing], yRuler[Pointing], zP[Pointing]);
+    pixelAxis(LowEnergy, winRes[LowEnergy][0], winRes[LowEnergy][1], xRuler[LowEnergy], yRuler[LowEnergy], zP[LowEnergy]);
+    pixelAxis(HighEnergy, winRes[HighEnergy][0], winRes[HighEnergy][1], xRuler[HighEnergy], yRuler[HighEnergy], zP[HighEnergy]);
 }
 #endif

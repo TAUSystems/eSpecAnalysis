@@ -22,6 +22,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <opencv2/imgcodecs/imgcodecs.hpp>
 
 #include <thread>
 #include <filesystem>
@@ -596,9 +597,61 @@ void resizeImage(double& scaling, std::string& inputFile, std::string& outputFil
     cv::imwrite(outputFile, output);
 }
 
+/**
+ * @brief Saves the final image along with the x-axis and y-axis data to a TIFF file.
+ * 
+ * The resulting TIFF file has three pages: 
+ *     the image, in units of (arbitrary) brightness per pixel
+ *     the x-axis, a 1 x N image in units of mrad for Pointing, in MeV for LowEnergy and HighEnergy
+ *     the y-axis, a M x 1 image in units of mrad
+ *
+ * @param image 
+ * @param xAxis 
+ * @param yAxis 
+ * @param filepath 
+ */
+void saveCroppedTransformedImage(imageBW& image, std::vector<double>& xAxis, std::vector<double>& yAxis, std::string filepath) {
+	std::vector<cv::Mat> tiff_pages;
+    cv::Mat imageMat = cv::Mat::zeros(image.sizeY(), image.sizeX(), CV_64F);
+    cv::Mat xAxisMat = cv::Mat::zeros(1, (int)xAxis.size(), CV_64F);
+    cv::Mat yAxisMat = cv::Mat::zeros((int)yAxis.size(), 1, CV_64F);
+
+    #pragma omp parallel for
+        for (int i = 0; i < image.sizeX(); i++) {
+            for (int j = 0; j < image.sizeY(); j++) {
+                imageMat.at<double>(j, i) = image.value(i, j);
+            }
+        }
+
+    #pragma omp parallel for
+        for (int i = 0; i < (int)xAxis.size(); i++) {
+            xAxisMat.at<double>(0, i) = xAxis[i];
+        }
+
+    #pragma omp parallel for
+        for (int j = 0; j < (int)yAxis.size(); j++) {
+            yAxisMat.at<double>(j, 0) = yAxis[j];
+        }
+
+    tiff_pages.push_back(imageMat);
+    tiff_pages.push_back(xAxisMat);
+    tiff_pages.push_back(yAxisMat);
+
+    cv::imwrite(filepath, tiff_pages);
+}
+
+enum ScreenName {
+    Pointing = 0,
+    LowEnergy = 1,
+    HighEnergy = 2
+};
+
 class spectrometer {
+    // paths to directories containing images, one for each screen
     std::vector<std::string> path;
+    // 3 x 5 array representing x, y, z, phi, theta for Pointing, LowEnergy, HighEnergy
     double** screen;
+    // pair of angles representing xMaxAngle, yMaxAngle. in milliradians, i believe -RvM
     double* angle;
     std::string analysis;
 
@@ -831,14 +884,18 @@ public:
     double z(int indexScreen) {
         return screen[indexScreen][2];
     }
+    
+    /* Angle in degrees */
     double phi(int indexScreen) {
         return screen[indexScreen][3];
     }
 
+    /* Angle in degrees */
     double theta(int indexScreen) {
         return screen[indexScreen][4];
     }
 
+    /* Angle in milliradians I think -RvM */
     double angleMax(int dir) {
         return angle[dir];
     }
@@ -849,7 +906,12 @@ public:
 };
 
 class screenCalibration {
+    // 4 x 8 array representing 8 corners' coordinates for four screens
+    // first four represent coordinates in screen image of screen
+    // last four represent coordinates in transformed image
+    // in order top left, top right, bottom right, bottom left
     std::vector<std::vector<cv::Point2d>> calPoints;
+    // 4 x 2 array representing xsize, ysize for four screens
     std::vector<std::vector<double>> winSize;
     std::vector<std::vector<double>> threshold;
 public:
@@ -882,6 +944,7 @@ public:
 
         #pragma omp parallel for
             for (int i = 0; i < N; i++) {
+                // top edge
                 if (calibration[i].find("xTEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -892,6 +955,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[0][0].y = std::stod(strValue.c_str());
                 }
+                // left edge
                 if (calibration[i].find("xLEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -902,6 +966,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[0][3].y = std::stod(strValue.c_str());
                 }
+                // bottom edge
                 if (calibration[i].find("xBEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -912,6 +977,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[0][2].y = std::stod(strValue.c_str());
                 }
+                // right edge
                 if (calibration[i].find("xREPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -922,6 +988,8 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[0][1].y = std::stod(strValue.c_str());
                 }
+                // how much to extend the crop window beyond edges
+                // use winSize to hold padding right now
                 if (calibration[i].find("xPadEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -932,6 +1000,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     winSize[0][1] = std::stod(strValue.c_str());
                 }
+                // for calibration mode, to help find ruler marks in reference image
                 if (calibration[i].find("xContrastEPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -953,6 +1022,7 @@ public:
                     threshold[0][3] = std::stod(strValue.c_str());
                 }
 
+                // top left
                 if (calibration[i].find("xTLEScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -963,6 +1033,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[1][0].y = std::stod(strValue.c_str());
                 }
+                // bottom left
                 if (calibration[i].find("xBLEScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -973,6 +1044,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[1][3].y = std::stod(strValue.c_str());
                 }
+                // bottom right
                 if (calibration[i].find("xBREScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -983,6 +1055,7 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[1][2].y = std::stod(strValue.c_str());
                 }
+                // top right
                 if (calibration[i].find("xTREScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -993,6 +1066,8 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[1][1].y = std::stod(strValue.c_str());
                 }
+                // padding
+                // use winSize to hold padding right now
                 if (calibration[i].find("xPadEScreenA") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1023,7 +1098,6 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     threshold[1][3] = std::stod(strValue.c_str());
                 }
-
                 if (calibration[i].find("xTLEScreenB") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1064,6 +1138,8 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[2][1].y = std::stod(strValue.c_str());
                 }
+                // padding
+                // use winSize to hold padding right now
                 if (calibration[i].find("xPadEScreenB") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1135,6 +1211,8 @@ public:
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
                     calPoints[3][1].y = std::stod(strValue.c_str());
                 }
+                // padding
+                // use winSize to hold padding right now
                 if (calibration[i].find("xPadPPointing") != std::string::npos) {
                     size_t indexStart = calibration[i].find("=") + 1;
                     std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
@@ -1167,6 +1245,7 @@ public:
                 }
             }
 
+        // determine desired points to transform the first four points to on transformed image
         for (int i = 0; i < 4; i++) {
             if (i == 0) {
                 double xL, xH, yL, yH, xC, yC;
@@ -1174,6 +1253,7 @@ public:
                 xL = std::min(std::min(calPoints[i][0].x, calPoints[i][1].x), std::min(calPoints[i][2].x, calPoints[i][3].x));
                 yH = std::max(std::max(calPoints[i][0].y, calPoints[i][1].y), std::max(calPoints[i][2].y, calPoints[i][3].y));
                 yL = std::min(std::min(calPoints[i][0].y, calPoints[i][1].y), std::min(calPoints[i][2].y, calPoints[i][3].y));
+                // at this point, winSize holds padding values
                 xC = (xH - xL)/2 + winSize[i][0];
                 yC = (yH - yL)/2 + winSize[i][1];
 
@@ -1191,6 +1271,7 @@ public:
                 calPoints[i][5].x = xH;
                 calPoints[i][5].y = yC;
 
+                // finally 
                 winSize[i][0] = xH + winSize[i][0];
                 winSize[i][1] = yH + winSize[i][1];
             }
@@ -1232,13 +1313,26 @@ public:
     }
 };
 
-class paramSpace {
-    std::vector<std::vector<std::vector<double>>> ps;
+/**
+ * @class trajectoryEndpointSurfaces
+ * @brief Stores calculated landing position on screens of electrons with given energy and angle.
+ * 
+ * Contains a 2 x n_energy x n_angle array showing the position in millimeters along the x-axis
+ * of LowEnergy and HighEnergy screens where an electron with given energy and vertical 
+ * transverse angle should land, along with the corresponding energy and angle axes. 
+ * 
+ */
+class trajectoryEndpointSurfaces {
+
+    // two 2D arrays of energy (outer) x pointing (inner)
+    std::vector<std::vector<std::vector<double>>> trajectoryEndpoint;
+    // two linear energy axis vectors in MeV, for lowenergy and highenergy
     std::vector<std::vector<double>> energyAxis;
+    // two linear transverse angle axis vectors mrad, for lowenergy and highenergy
     std::vector<std::vector<double>> pointingAxis;
 public:
-    paramSpace() {
-        ps.resize(2);
+    trajectoryEndpointSurfaces() {
+        trajectoryEndpoint.resize(2);
         energyAxis.resize(2);
         pointingAxis.resize(2);
     }
@@ -1251,7 +1345,6 @@ public:
         std::vector<double> bufferM;
         bool loop;
         int m, n, N;
-
 
         filePath = calPath + "/eScreenA.map";
         readFile(filePath, buffer);
@@ -1275,7 +1368,7 @@ public:
         dp = std::stod(strValue.c_str());
 
         m = (int)buffer.size();
-        ps[0].clear();
+        trajectoryEndpoint[0].clear();
         for (int i = 1; i < m; i++) {
             loop = 1;
             bufferM.clear();
@@ -1292,10 +1385,10 @@ public:
                     loop = 0;
                 }
             }
-            ps[0].push_back(bufferM);
+            trajectoryEndpoint[0].push_back(bufferM);
         }
         m = m - 1;
-        n = (int)ps[0][0].size();
+        n = (int)trajectoryEndpoint[0][0].size();
         N = std::max(n, m);
         for (int i = 0; i < N; i++) {
             if (i < m) {
@@ -1328,7 +1421,7 @@ public:
         dp = std::stod(strValue.c_str());
 
         m = (int)buffer.size();
-        ps[1].clear();
+        trajectoryEndpoint[1].clear();
         for (int i = 1; i < m; i++) {
             loop = 1;
             bufferM.clear();
@@ -1345,10 +1438,10 @@ public:
                     loop = 0;
                 }
             }
-            ps[1].push_back(bufferM);
+            trajectoryEndpoint[1].push_back(bufferM);
         }
         m = m - 1;
-        n = (int)ps[1][0].size();
+        n = (int)trajectoryEndpoint[1][0].size();
         N = std::max(n, m);
         for (int i = 0; i < N; i++) {
             if (i < m) {
@@ -1360,16 +1453,16 @@ public:
         }
     }
 
-    std::vector<double> energy(int screen) { 
+    std::vector<double> getEnergyAxis(int screen) { 
         return energyAxis[screen - 1];
     }
 
-    std::vector<double> pointing(int screen) {
+    std::vector<double> getPointingAxis(int screen) {
         return pointingAxis[screen - 1];
     }
 
-    std::vector<std::vector<double>> parameterSpace(int screen) {
-        return ps[screen - 1];
+    std::vector<std::vector<double>> getTrajectoryEndpointSurface(int screen) {
+        return trajectoryEndpoint[screen - 1];
     }
 };
 
