@@ -693,8 +693,8 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 	fileCount = 15;
 
 	if (fileCount == 15) {
-		// drawPointingAnalysis(eSpec, pSpace, xAxes, yAxes, pxX, pxY, imP, imA, imB, filepath_spectrum);
-		
+		drawPointingAnalysis(eSpec, pSpace, xAxes, yAxes, pxX, pxY, imP, imA, imB, filepath_spectrum);
+
 		double verticalPointingAngle;
 		getPointing(imP, xAxes[Pointing], yAxes[Pointing], pxX, pxY, eSpec, verticalPointingAngle);
 
