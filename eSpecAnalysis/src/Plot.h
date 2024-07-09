@@ -3,8 +3,9 @@
 #ifndef __Plot_h__
 #define __Plot_h__
 
-#include "matplotlibcpp.h"
 #include "NumericalMethods.h"
+#include "matplotlibcpp.h"
+#include <map>
 
 namespace plt = matplotlibcpp;
 

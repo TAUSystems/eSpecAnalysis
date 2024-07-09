@@ -3,9 +3,10 @@
 #
 
 # Add source to this project's executable.
-add_executable (eSpecAnalysis "src/main.cpp" )
+add_executable (eSpecAnalysis "src/main.cpp")
 
 target_link_libraries (eSpecAnalysis ${OpenCV_LIBS})
+target_link_libraries (eSpecAnalysis ${ROOT_LIBRARIES})
 target_link_libraries (eSpecAnalysis ${PYTHON_LIBRARIES})
 target_link_libraries (eSpecAnalysis OpenMP::OpenMP_CXX)
 

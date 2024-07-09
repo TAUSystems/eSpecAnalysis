@@ -4,6 +4,7 @@
 #define __Analysis_h__
 
 #include "Calibration.h"
+#include <thread>
 
 /*
 void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {

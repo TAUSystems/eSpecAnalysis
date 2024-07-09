@@ -2,11 +2,13 @@
 
 #ifndef __fileIO_h__
 #define __fileIO_h__
+#endif
 
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
-#ifdef _WIN32
+#include <regex>
+#ifndef _WIN32
     #include <filesystem>
 #else
     #include <unistd.h>
@@ -261,9 +263,11 @@ std::string getDate() {
     std::tm timeInfo;
     char buffer[80];
     std::time(&timeRaw);
-    localtime_s(&timeInfo, &timeRaw);
+#ifdef _WIN32
+        localtime_s(&timeInfo, &timeRaw);
+#else
+        localtime_r(&timeRaw, &timeInfo); // POSIX thread-safe equivalent of localtime
     std::strftime(buffer, 80, "%Y%m%d", &timeInfo);
-
     std::string dateString(buffer);
     return dateString;
 }
@@ -285,80 +289,26 @@ void listDir(std::string& pathDir, std::vector<std::string>& list) {
     list.clear();
     std::string file;
     bool isIMG;
-    #ifdef _WIN32
-        for (const auto& entry : std::filesystem::directory_iterator(pathDir)) {
-            isIMG = false;
-            file = entry.path().generic_string();
-            if (file.find(".tiff") != std::string::npos ||
-                file.find(".tif") != std::string::npos ||
-                file.find(".Tiff") != std::string::npos || 
-                file.find(".Tif") != std::string::npos || 
-                file.find(".TIFF") != std::string::npos || 
-                file.find(".TIF") != std::string::npos) {
-                isIMG = true;
-            }
-            if (isIMG) {
-                list.push_back(file);
-            }
+
+    for (const auto& entry : std::filesystem::directory_iterator(pathDir)) {
+        std::string file = entry.path().generic_string();
+        std::regex extPattern("\\.(tif|tiff)$", std::regex_constants::icase);
+
+        if (std::regex_search(file, extPattern)) {
+            list.push_back(file);
         }
-    #else
-        DIR* dp = opendir(pathDir);
-        int dfd = dirfd(dp);
-        struct dirent* dirp;
-        while (readdir(dp) != NULL) {
-            struct stat sb;
-            fstatat(dfd, dirp->d_name, &sb, 0);
-            file = pathDir + "/";
-            file = file + dirp->d_name;
-            isIMG = false;
-            file = entry.path().generic_string();
-            if (file.find(".tiff") != std::string::npos ||
-                file.find(".tif") != std::string::npos ||
-                file.find(".Tiff") != std::string::npos ||
-                file.find(".Tif") != std::string::npos ||
-                file.find(".TIFF") != std::string::npos ||
-                file.find(".TIF") != std::string::npos) {
-                isIMG = true;
-            }
-            if (isIMG) {
-                list.push_back(file);
-            }
-        }
-    #endif
+    }
 }
 
 void findRef(std::vector<std::string>& list, std::string& pathRef){
     pathRef = "-1NoRef";
-    size_t N = list.size();
+    std::regex refPattern("(refimage|refimg)", std::regex_constants::icase);
+    std::regex extPattern("\\.(tif|tiff)", std::regex_constants::icase);
 
-    for (size_t i = 0; i < N; i++) {
-        if (list[i].find("refimage") != std::string::npos ||
-            list[i].find("refImage") != std::string::npos || 
-            list[i].find("refIMAGE") != std::string::npos || 
-            list[i].find("Refimage") != std::string::npos || 
-            list[i].find("RefImage") != std::string::npos || 
-            list[i].find("RefIMAGE") != std::string::npos || 
-            list[i].find("REFimage") != std::string::npos || 
-            list[i].find("REFImage") != std::string::npos || 
-            list[i].find("REFIMAGE") != std::string::npos || 
-            list[i].find("refimg") != std::string::npos || 
-            list[i].find("refImg") != std::string::npos || 
-            list[i].find("refIMG") != std::string::npos || 
-            list[i].find("Refimg") != std::string::npos || 
-            list[i].find("RefImg") != std::string::npos || 
-            list[i].find("RefIMG") != std::string::npos || 
-            list[i].find("REFimg") != std::string::npos || 
-            list[i].find("REFImg") != std::string::npos || 
-            list[i].find("REFIMG") != std::string::npos ) {
-            if (list[i].find(".tiff") != std::string::npos ||
-                list[i].find(".tif") != std::string::npos ||
-                list[i].find(".Tiff") != std::string::npos ||
-                list[i].find(".Tif") != std::string::npos ||
-                list[i].find(".TIFF") != std::string::npos ||
-                list[i].find(".TIF") != std::string::npos) {
-                pathRef = list[i];
-                break;
-            }
+    for (size_t i = 0; i < list.size(); i++) {
+        if (std::regex_search(list[i], refPattern) && std::regex_search(list[i], extPattern)) {
+            pathRef = list[i];
+            break;
         }
     }
 }
