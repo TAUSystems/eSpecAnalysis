@@ -411,12 +411,15 @@ void mRadAxis(spectrometer& eSpec, int& screen, std::vector<double>& rulerX, std
 	}
 }
 
-void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
+void drawAxis(bool mode, double scale, spectrometer& eSpec, paramSpace & pSpace, int& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
 	std::vector<double> pixelX, pixelY;
 	int Nx = (int)rulerX.size();
 	int Ny = (int)rulerY.size();
 	pixelX.resize(Nx);
 	pixelY.resize(Ny);
+
+	double lw = 2.0 * scale;
+	double txtSize = 11 * scale;
 
 	int countT = 0;
 	std::generate(std::begin(pixelX), std::end(pixelX), [&] {
@@ -499,13 +502,13 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 		plotX.resize(2, 0.0);
 		plotY.resize(2, 0.0);
 		if (screen == 0) {
-			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
+			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 			for (int i = 0; i < Nx; i++) {
 				plotX[0] = xAxis[i];
 				plotX[1] = xAxis[i];
 				plotY[0] = yZero - 10;
 				plotY[1] = yZero + 10;
-				plt::plot(plotX, plotY, { {"color","w"} });
+				plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 				if (xTickStart - 5 * i != 0) {
 					//plt::text(xAxis[i] - 10, yZero + 25, std::to_string(xTickStart - 5 * i));
 					if ((xTickStart - 5 * i) >= 0) {
@@ -537,7 +540,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 				plotX[1] = xZero + 10;
 				plotY[0] = yAxis[i];
 				plotY[1] = yAxis[i];
-				plt::plot(plotX, plotY, { {"color","w"} });
+				plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 				if (yTickStart - 5 * i != 0) {
 					//plt::text(xZero + 25, yAxis[i] + 5, std::to_string(yTickStart - 5 * i));
 					if ((yTickStart - 5 * i) >= 0) {
@@ -568,22 +571,22 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 			plotX[1] = (int)rulerX.size() - 1;
 			plotY[0] = yZero;
 			plotY[1] = yZero;
-			plt::plot(plotX, plotY, { {"color","w"} });
+			plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 			plotX[0] = xZero;
 			plotX[1] = xZero;
 			plotY[0] = 0;
 			plotY[1] = (int)rulerY.size() - 1;
-			plt::plot(plotX, plotY, { {"color","w"} });
+			plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 		}
 		else {
-			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
+			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 			double locationX, locationY;
 			for (int i = 1; i < Nx; i++) {
 				plotX[0] = xAxis[i];
 				plotX[1] = xAxis[i];
 				plotY[0] = yAxis[0];
 				plotY[1] = 0;
-				plt::plot(plotX, plotY, { {"color","w"} });
+				plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 				locationY = 35;
 				if ((xTickStart - 5 * i) % 10 == 0) {
 					if ((xTickStart - 5 * i) == 0) {
@@ -594,13 +597,13 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 					}
 				}
 			}
-			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"} });
+			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 			for (int i = 0; i < Ny; i++) {
 				plotX[0] = xAxis[0];
 				plotX[1] = 0;
 				plotY[0] = yAxis[i];
 				plotY[1] = yAxis[i];
-				plt::plot(plotX, plotY, { {"color","w"} });
+				plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 				locationX = -35;
 				if ((yTickStart - 5 * i) >= 0) {
 					if ((yTickStart - 5 * i) > 0) {
@@ -630,12 +633,12 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 			plotX[1] = (int)rulerX.size() - 1;
 			plotY[0] = yAxis[0];
 			plotY[1] = yAxis[0];
-			plt::plot(plotX, plotY, { {"color","w"} });
+			plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 			plotX[0] = xAxis[0];
 			plotX[1] = xAxis[0];
 			plotY[0] = 0;
 			plotY[1] = (int)rulerY.size() - 1;
-			plt::plot(plotX, plotY, { {"color","w"} });
+			plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 		}
 	}
 	else {
@@ -844,13 +847,13 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 		plotX.resize(2, 0.0);
 		plotY.resize(2, 0.0);
 		if (screen == 0) {
-			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
+			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 			for (int i = 0; i < Nx; i++) {
 				plotX[0] = xAxis[i];
 				plotX[1] = xAxis[i];
 				plotY[0] = yZero - 25;
 				plotY[1] = yZero + 25;
-				plt::plot(plotX, plotY, { {"color","w"} });
+				plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 				if (xTickStart - 5 * i != 0) {
 					if ((xTickStart - 5 * i) >= 0) {
 						if ((xTickStart - 5 * i) > 0) {
@@ -881,7 +884,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 				plotX[1] = xZero + 25;
 				plotY[0] = yAxis[i];
 				plotY[1] = yAxis[i];
-				plt::plot(plotX, plotY, { {"color","w"} });
+				plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 				if (yTickStart - 5 * i != 0) {
 					if ((yTickStart - 5 * i) >= 0) {
 						if ((yTickStart - 5 * i) > 0) {
@@ -911,15 +914,15 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 			plotX[1] = (int)rulerX.size() - 1;
 			plotY[0] = yZero;
 			plotY[1] = yZero;
-			plt::plot(plotX, plotY, { {"color","w"} });
+			plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 			plotX[0] = xZero;
 			plotX[1] = xZero;
 			plotY[0] = 0;
 			plotY[1] = (int)rulerY.size() - 1;
-			plt::plot(plotX, plotY, { {"color","w"} });
+			plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 		}
 		else {
-			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
+			plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 			plotX[0] = 0;
 			plotX[1] = (int)rulerX.size() - 1;
 			double locationX, locationY;
@@ -933,7 +936,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 				plotY[1] = yAxis[0];
 				locationY = 20;
 			}
-			plt::plot(plotX, plotY, { {"color","w"} });
+			plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 			if (screen == 1) {
 				plotY[1] = yAxis[0] - 20;
 			}
@@ -944,7 +947,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 			for (int i = 1; i < Nx; i++) {
 				plotX[0] = xAxis[i];
 				plotX[1] = xAxis[i];
-				plt::plot(plotX, plotY, { {"color","w"} });
+				plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 				if (xTick[i] % 20 == 0) {
 					if (i > 1){
 						if (abs(xAxis[i] - xAxis[lastLabel]) > 60) {
@@ -974,7 +977,7 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 					plt::text((int)(0.775 * rulerX.size()), (int)(0.9 * rulerY.size()), std::string("Out of Range! Axis for ") + pValue + std::string(" mrad"));
 				}
 			}
-			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"} });
+			plt::rcparams({ {"text.color", "k"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 			double dx = (int)rulerX.size();
 			for (int i = 0; i < Nx; i++) {
 				value = abs(xAxis[i] - 25);
@@ -990,13 +993,13 @@ void drawAxis(bool mode, spectrometer& eSpec, paramSpace & pSpace, int& screen, 
 			}
 			plotY[0] = 0;
 			plotY[1] = (int)rulerY.size() - 1;
-			plt::plot(plotX, plotY, { {"color","w"} });
+			plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 			plotX[1] = 0;
 			for (int i = 0; i < Ny; i++) {
 				plotY[0] = yAxis[i];
 				plotY[1] = yAxis[i];
 				if (yTickStart - 5 * i > -15 && yTickStart - 5 * i < 15) {
-					plt::plot(plotX, plotY, { {"color","w"} });
+					plt::plot(plotX, plotY, { {"color","w"}, {"linewidth", std::to_string(lw)} });
 				}
 				locationX = -45;
 				if ((yTickStart - 5 * i) >= 0) {
@@ -1450,8 +1453,6 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	FE1DInterp(screenPos, EnAxis, inputBuffer, ACenterEn);
 
 
-	printf("Screen A Centeroid Energy: %0.2e MeV\n", ACenterEn);
-
 
 	EnAxis = pSpace.energy(2);
 	PtAxis = pSpace.pointing(2);
@@ -1493,7 +1494,6 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	inputBuffer = outputBuffer;
 	FE1DInterp(screenPos, EnAxis, inputBuffer, BCenterEn);
 
-	printf("Screen B Centeroid Energy: %0.2e MeV\n", BCenterEn);
 
 	#pragma omp parallel for
 	for (int i = 0; i < imA.sizeX(); i++) {
@@ -1505,9 +1505,13 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 		sBEline[i] = imB.sizeY() * (1.0 - sBEline[i] / 3.0);
 	}
 
+	double scale = 2;
+	double lw = 2.0 * scale;
+	double txtSize = 11 * scale;
+
 	size_t resV, resH;
 	double ratio;
-	resH = 2224 * 2;
+	resH = 2224 * scale;
 	double spX, spY;
 	spY = ((double)imA.sizeY() + (double)imB.sizeY());
 	spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
@@ -1525,7 +1529,7 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	pltimshow(imP, 0, "");
 
 
-	plt::plot(boundboxX, boundboxY, { {"color","r"} });
+	plt::plot(boundboxX, boundboxY, { {"color","r"}, {"linewidth", std::to_string(lw)} });
 
 	/*
 	drawLineX[0] = 0;
@@ -1547,15 +1551,15 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	//drawLineY[0] = (int)imP.sizeY() - 1 - peakBound[1];
 	drawLineY[0] = peakBound[1];
 	drawLineY[1] = drawLineY[0];
-	plt::plot(drawLineX, drawLineY, { {"color","b"} });
+	plt::plot(drawLineX, drawLineY, { {"color","b"}, {"linewidth", std::to_string(lw)} });
 
 	drawLineX[0] = peakBound[0];
 	drawLineX[1] = drawLineX[0];
 	drawLineY[0] = 0;
 	drawLineY[1] = (int)imP.sizeY() - 1;
-	plt::plot(drawLineX, drawLineY, { {"color","b"} });
+	plt::plot(drawLineX, drawLineY, { {"color","b"}, {"linewidth", std::to_string(lw)} });
 
-	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
+	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 	std::string pValue = std::to_string(pointing);
 	std::string mValue = std::to_string(maxValue);
 	std::string tValue = std::to_string((int)totalValue);
@@ -1579,22 +1583,29 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 		}
 	}
 
-	drawAxis(1, eSpec, pSpace, screenP, xRuler[screenP], yRuler[screenP], pointing);
+	drawAxis(1, scale, eSpec, pSpace, screenP, xRuler[screenP], yRuler[screenP], pointing);
 
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 1, 1, (int)(spX / spY));
 	removeOutlier(imA, 4.0);
 	medianFilter(imA, 2);
 	pltimshow(imA, 0, "");
-	plt::plot(APix, sAEline, { {"color","w"} });
-	drawAxis(1, eSpec, pSpace, screenA, xRuler[screenA], yRuler[screenA], pointing);
+	plt::plot(APix, sAEline, { {"color","w"}, {"linewidth", std::to_string(lw)} });
+	drawAxis(1, scale, eSpec, pSpace, screenA, xRuler[screenA], yRuler[screenA], pointing);
+	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
+	std::string AEValue = std::to_string((int)std::round(ACenterEn));
+	plt::text((int)(0.825 * imA.sizeX()), (int)(0.25 * imA.sizeY()), std::string("Centroid Energy: ") + AEValue + std::string(" MeV"));
+	
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 1, 1, 1, (int)(spX / spY));
 	removeOutlier(imB, 4.0);
 	medianFilter(imB, 2);
 	pltimshow(imB, 0, "");
-	plt::plot(BPix, sBEline, { {"color","w"} });
-	drawAxis(1, eSpec, pSpace, screenB, xRuler[screenB], yRuler[screenB], pointing);
+	plt::plot(BPix, sBEline, { {"color","w"}, {"linewidth", std::to_string(lw)} });
+	drawAxis(1, scale, eSpec, pSpace, screenB, xRuler[screenB], yRuler[screenB], pointing);
+	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
+	std::string BEValue = std::to_string((int)std::round(BCenterEn));
+	plt::text((int)(0.825 * imB.sizeX()), (int)(0.25 * imB.sizeY()), std::string("Centroid Energy: ") + BEValue + std::string(" MeV"));
 	plt::axis("off");
 	plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
 	plt::draw();
@@ -1666,8 +1677,8 @@ void drawPointingAnalysisManual(spectrometer& eSpec, paramSpace& pSpace, std::ve
 		sBEline[i] = buffer;
 		BPix[i] = (double)i;
 	}
-	medianFilter(sAEline, 10.0);
-	medianFilter(sBEline, 10.0);
+	medianFilter(sAEline, 16.0);
+	medianFilter(sBEline, 16.0);
 
 	double minBuffer = sAEline[0];
 	double maxBuffer = sAEline[0];
@@ -1957,9 +1968,13 @@ void drawPointingAnalysisManual(spectrometer& eSpec, paramSpace& pSpace, std::ve
 		sBEline[i] = imB.sizeY() * (1.0 - sBEline[i] / 3.0);
 	}
 
+	double scale = 2;
+	double lw = 2.0 * scale;
+	double txtSize = 11 * scale;
+
 	size_t resV, resH;
 	double ratio;
-	resH = 2224 * 2;
+	resH = 2224 * scale;
 	double spX, spY;
 	spY = ((double)imA.sizeY() + (double)imB.sizeY());
 	spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
@@ -1977,8 +1992,9 @@ void drawPointingAnalysisManual(spectrometer& eSpec, paramSpace& pSpace, std::ve
 	pltimshow(imP, 0, "");
 
 
-	plt::plot(boundboxX, boundboxY, { {"color","r"} });
+	plt::plot(boundboxX, boundboxY, { {"color","r"}, {"linewidth", std::to_string(lw)} });
 
+	/*
 	drawLineX[0] = 0;
 	drawLineX[1] = (int)imP.sizeX() - 1;
 	drawLineY[0] = (int)imP.sizeY() - 1 - peak[1];
@@ -1990,20 +2006,21 @@ void drawPointingAnalysisManual(spectrometer& eSpec, paramSpace& pSpace, std::ve
 	drawLineY[0] = 0;
 	drawLineY[1] = (int)imP.sizeY() - 1;
 	plt::plot(drawLineX, drawLineY, { {"color","k"} });
+	*/
 
 	drawLineX[0] = 0;
 	drawLineX[1] = (int)imP.sizeX() - 1;
 	drawLineY[0] = (int)imP.sizeY() - 1 - peakBound[1];
 	drawLineY[1] = drawLineY[0];
-	plt::plot(drawLineX, drawLineY, { {"color","b"} });
+	plt::plot(drawLineX, drawLineY, { {"color","b"}, {"linewidth", std::to_string(lw)} });
 
 	drawLineX[0] = peakBound[0];
 	drawLineX[1] = drawLineX[0];
 	drawLineY[0] = 0;
 	drawLineY[1] = (int)imP.sizeY() - 1;
-	plt::plot(drawLineX, drawLineY, { {"color","b"} });
+	plt::plot(drawLineX, drawLineY, { {"color","b"}, {"linewidth", std::to_string(lw)} });
 
-	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
+	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 	std::string pValue = std::to_string(pointing);
 	std::string mValue = std::to_string(maxValue);
 	std::string tValue = std::to_string((int)totalValue);
@@ -2027,22 +2044,29 @@ void drawPointingAnalysisManual(spectrometer& eSpec, paramSpace& pSpace, std::ve
 		}
 	}
 
-	drawAxis(1, eSpec, pSpace, screenP, xRuler[screenP], yRuler[screenP], pointing);
+	drawAxis(1, scale, eSpec, pSpace, screenP, xRuler[screenP], yRuler[screenP], pointing);
 
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 1, 1, (int)(spX / spY));
 	removeOutlier(imA, 4.0);
 	medianFilter(imA, 2);
 	pltimshow(imA, 0, "");
-	plt::plot(APix, sAEline, { {"color","w"} });
-	drawAxis(1, eSpec, pSpace, screenA, xRuler[screenA], yRuler[screenA], pointing);
+	plt::plot(APix, sAEline, { {"color","w"}, {"linewidth", std::to_string(lw)} });
+	drawAxis(1, scale, eSpec, pSpace, screenA, xRuler[screenA], yRuler[screenA], pointing);
+	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
+	std::string AEValue = std::to_string((int)std::round(ACenterEn));
+	plt::text((int)(0.825 * imA.sizeX()), (int)(0.25 * imA.sizeY()), std::string("Centroid Energy: ") + AEValue + std::string(" MeV"));
+
 	plt::axis("off");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 1, 1, 1, (int)(spX / spY));
 	removeOutlier(imB, 4.0);
 	medianFilter(imB, 2);
 	pltimshow(imB, 0, "");
-	plt::plot(BPix, sBEline, { {"color","w"} });
-	drawAxis(1, eSpec, pSpace, screenB, xRuler[screenB], yRuler[screenB], pointing);
+	plt::plot(BPix, sBEline, { {"color","w"}, {"linewidth", std::to_string(lw)} });
+	drawAxis(1, scale, eSpec, pSpace, screenB, xRuler[screenB], yRuler[screenB], pointing);
+	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
+	std::string BEValue = std::to_string((int)std::round(BCenterEn));
+	plt::text((int)(0.825 * imB.sizeX()), (int)(0.25 * imB.sizeY()), std::string("Centroid Energy: ") + BEValue + std::string(" MeV"));
 	plt::axis("off");
 	plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.075}, {"hspace",0.0} });
 	plt::draw();
@@ -2295,6 +2319,7 @@ void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibrat
     
 				size_t resV, resH;
 				double ratio;
+				double scale = 2.0;
 				if (screen == 0) {
 					resV = 720;
 					ratio = (double)im.sizeX() / (double)im.sizeY();
@@ -2316,7 +2341,7 @@ void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibrat
                 plt::figure_size(resH, resV);
                 plt::subplot2grid(8, 8, 0, 0, 7, 7);
                 pltimshow(im, 1, "");
-				drawAxis(0, eSpec, null, screen, xRuler[screen], yRuler[screen],pointing);
+				drawAxis(0, scale, eSpec, null, screen, xRuler[screen], yRuler[screen],pointing);
                 plt::axis("off");
                 plt::subplot2grid(8, 8, 0, 7, 7, 1);
                 lineOut(1, 1, im, 0, line);
