@@ -35,7 +35,7 @@ void transformPixel(cv::Mat& matrixH, cv::Point3d& pixel) {
     pixel.z = z;
 }
 
-void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& windowSize, imageBW& output) {
+void perspectiveTransform(imageBW& input, cv::Mat& matrixH, std::vector<double>& windowSize, imageBW& output) {
     size_t Nx = (size_t)windowSize[0];
     size_t Ny = (size_t)windowSize[1];
 
@@ -474,6 +474,7 @@ void findRuler(int& mode, int& screen, imageBW& image, std::vector<double>& thre
             loop = 0;
         }
     }
+    imCrop.destroy();
     peak.clear();
     spacing.clear();
 }
@@ -525,6 +526,7 @@ void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vec
                 pxXCenter = i + bounds[0];
             }
         }
+        imCrop.destroy();
     }
     zeroPoint.resize(2, 0.0);
     zeroPoint[0] = pxXCenter;
@@ -842,7 +844,10 @@ void screenCal(int mode, int& screen, spectrometer& eSpec, screenCalibration& ca
             plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
             plt::show();
         }
+        imPlot.destroy();
     }
+    image.destroy();
+    imTransform.destroy();
 }
 
 void writeCalibration(std::string calPath, std::vector<std::vector<int>>& winRes, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<std::vector<double>>& zP) {
@@ -943,6 +948,7 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
             }
         }
         H[n] = bufferH;
+        bufferH.release();
 
         bool loop = 1;
         std::vector<double> ruler;

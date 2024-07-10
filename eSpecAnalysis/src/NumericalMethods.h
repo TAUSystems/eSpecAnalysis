@@ -845,7 +845,9 @@ void medianFilter(imageBW& data, int windowRadius) {
             }
         }
 
-    data = filtered;
+    data.destroy();
+    filtered.copy(data);
+    filtered.destroy();
 }
 
 void removeOutlier(imageBW& data, double sigmaOrder) {
