@@ -47,6 +47,7 @@ int main() {
         screen = 1;
         std::cout << "\nManual Analysis with Pointing Screen\n";
         std::cout << eSpec.screenPath(screen).c_str() << "\n";
+        std::cout << stat(eSpec.screenPath(screen).c_str(), &sb) << "\n";
         if (stat(eSpec.screenPath(screen).c_str(), &sb) == 0) {
             readCalibration(pathCalibration, H, xRuler, yRuler);
             paramSpace pSpace;

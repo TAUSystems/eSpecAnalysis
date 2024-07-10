@@ -25,6 +25,12 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
+#ifndef _WIN32
+const std::string slash = "/";
+#else
+const std::string slash = "\\";
+#endif
+
 template<int I>
 struct CvType {};
 template<>
@@ -729,14 +735,14 @@ public:
                 }
             }
         std::string dateString = getDate();
-        path[0] = rootPath + "\\" + dateString + "\\" + path[0];
-        path[1] = rootPath + "\\" + dateString + "\\" + path[1];
-        path[2] = rootPath + "\\" + dateString + "\\" + path[2];
-        analysis = rootPath + "\\" + dateString;
+        path[0] = rootPath + slash + dateString + slash + path[0];
+        path[1] = rootPath + slash + dateString + slash + path[1];
+        path[2] = rootPath + slash + dateString + slash + path[2];
+        analysis = rootPath + slash + dateString;
 
         struct stat sb;
         if (stat(analysis.c_str(), &sb) == 0) {
-            analysis = analysis + "\\Analysis";
+            analysis = analysis + slash + "Analysis";
             std::filesystem::create_directory(analysis);
         }
         else {
