@@ -290,6 +290,9 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 		else {
 			peak[0] = linePI;
 		}
+		quadRegMat.release();
+		sumX.clear();
+		sumY.clear();
 	}
 	else {
 		peak[0] = linePI;
@@ -375,9 +378,12 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	}
 	peakValue = imSmooth.value(peak[0], peak[1]);
 	imSmooth.destroy();
+	lineValuesX.clear();
+	lineValuesY.clear();
+	
 }
 
-void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rulerX, std::vector<double>&rulerY, std::vector<double>& pointing) {
+void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& pointing) {
 	std::vector<int> peak;
 	double peakValue;
 	findSignalPeak(image, peak, peakValue);
@@ -395,6 +401,7 @@ void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rule
 
 	pointing[0] = std::atan2(z, x);
 	pointing[1] = std::atan2(z, y);
+	peak.clear();
 }
 
 void mRadAxis(spectrometer& eSpec, int& screen, std::vector<double>& rulerX, std::vector<double>& rulerY) {
@@ -1119,6 +1126,8 @@ void calMode(spectrometer& eSpec, std::string& pathCalibration, std::vector<cv::
 			buffer[1] = imTeP.sizeY();
 			winRes[0] = buffer;
 			loadError = 0;
+			image.destroy();
+			viewRes.clear();
 		}
 		else {
 			std::cout << "\nNo Reference Found at: " << eSpec.screenPath(screen) << "\n";
@@ -1170,6 +1179,8 @@ void calMode(spectrometer& eSpec, std::string& pathCalibration, std::vector<cv::
 				buffer[1] = imTeSA.sizeY();
 				winRes[1] = buffer;
 				loadError = 0;
+				image.destroy();
+				viewRes.clear();
 			}
 			else {
 				std::cout << "\nNo Reference Found at: " << eSpec.screenPath(screen) << "\n";
@@ -1222,6 +1233,8 @@ void calMode(spectrometer& eSpec, std::string& pathCalibration, std::vector<cv::
 				buffer[1] = imTeSB.sizeY();
 				winRes[2] = buffer;
 				loadError = 0;
+				image.destroy();
+				viewRes.clear();
 			}
 			else {
 				std::cout << "\nNo Reference Found at: " << eSpec.screenPath(screen) << "\n";
@@ -1262,6 +1275,13 @@ void calMode(spectrometer& eSpec, std::string& pathCalibration, std::vector<cv::
 	else {
 		std::cout << "\nCalibration Failed Due To Missing Files.\n";
 	}
+	imTeP.destroy();
+	imTeSA.destroy();
+	imTeSB.destroy();
+	listFile.clear();
+	winRes.clear();
+	zP.clear();
+	buffer.clear();
 }
 
 bool loadFile(std::vector<std::string>& list, std::string& path, std::string& fileName, std::string& timeStamp, cv::Mat& H, std::vector<double>& viewRes, imageBW& output) {
@@ -1392,12 +1412,14 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	maxSignal = maxSignal / 2.0;
 
 	int Alow, Ahigh;
+	Alow = 0;
 	for (int i = 0; i < Apeak; i++) {
 		if (sAEline[i] >= maxSignal) {
 			Alow = i;
 			break;
 		}
 	}
+	Ahigh = Apeak;
 	for (int i = Apeak; i < imA.sizeX(); i++) {
 		if (sAEline[i] <= maxSignal) {
 			Ahigh = i;
@@ -1417,12 +1439,14 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	maxSignal = maxSignal / 2.0;
 
 	int Blow, Bhigh;
+	Blow = 0;
 	for (int i = 0; i < Bpeak; i++) {
 		if (sBEline[i] >= maxSignal) {
 			Blow = i;
 			break;
 		}
 	}
+	Bhigh = Bpeak;
 	for (int i = Bpeak; i < imB.sizeX(); i++) {
 		if (sBEline[i] <= maxSignal) {
 			Bhigh = i;
@@ -1755,6 +1779,8 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	pS.clear();
 	drawLineX.clear();
 	drawLineY.clear();
+	imASmooth.destroy();
+	imBSmooth.destroy();
 }
 
 void drawPointingAnalysisManual(spectrometer& eSpec, paramSpace& pSpace, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<double>& pxX, std::vector<double>& pxY, imageBW& imP, imageBW& imA, imageBW& imB, std::string outputName) {
@@ -2258,6 +2284,8 @@ void drawPointingAnalysisManual(spectrometer& eSpec, paramSpace& pSpace, std::ve
 	pS.clear();
 	drawLineX.clear();
 	drawLineY.clear();
+	imASmooth.destroy();
+	imBSmooth.destroy();
 }
 
 void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, paramSpace & pSpace, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
@@ -2297,6 +2325,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 		scanNewFile(pathA, listRef, updateStatus);
 		for (int i = 0; i < (int)updateStatus.size(); i++) {
 			if (updateStatus[i] == 1) {
+				clearCMD();
 				printf("Found New File.\n");
 				uint fileCount = 0;
 				fileName = listRef[i].substr(pathLength + 1, listRef[i].length() - pathLength - 1);
@@ -2337,6 +2366,7 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 					imA.destroy();
 					imB.destroy();
 					imP.destroy();
+					
 				}
 				else {
 					switch (fileCount) {
@@ -2370,6 +2400,17 @@ void pointingMode(double& rate, double& timeout, spectrometer& eSpec, screenCali
 		}
 		i++;
 	}
+	viewResA.clear();
+	viewResB.clear();
+	viewResP.clear();
+	lineBuffer.clear();
+	pxX.clear();
+	pxY.clear();
+	listRef.clear();
+	listUpdate.clear();
+	listB.clear();
+	listP.clear();
+	updateStatus.clear();
 }
 
 void pointingModeManual(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, paramSpace& pSpace, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
@@ -2465,6 +2506,15 @@ void pointingModeManual(double& rate, double& timeout, spectrometer& eSpec, scre
 			loop = 0;
 		}
 	}
+	viewResA.clear();
+	viewResB.clear();
+	viewResP.clear();
+	lineBuffer.clear();
+	pxX.clear();
+	pxY.clear();
+	listA.clear();
+	listB.clear();
+	listP.clear();
 }
 
 void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibration& calibration, int& screen, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler) {
@@ -2486,8 +2536,9 @@ void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibrat
 
 				getImage(listRef[i], imBuffer);
 				perspectiveTransform(imBuffer, H[screen], viewRes, im);
+				imBuffer.destroy();
 				removeOutlier(im, 4.0);
-				medianFilter(im, 2);
+				medianFilter(im, 8);
 
     
 				size_t resV, resH;
@@ -2542,6 +2593,10 @@ void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibrat
                 plt::tick_params({ {"labelsize","0"},{"direction","in"} });
 				plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
                 plt::draw();
+
+				axis.clear();
+				im.destroy();
+
             }
         }
         plt::show(false);
@@ -2553,6 +2608,12 @@ void viewMode(double& rate, double& timeout, spectrometer& eSpec, screenCalibrat
 		i++;
     }
     plt::close();
+
+	viewRes.clear();
+	listRef.clear();
+	listUpdate.clear();
+	line.clear();
+	updateStatus.clear();
 }
 
 #endif

@@ -22,6 +22,8 @@ void homographyMat(std::vector<cv::Point2d> points, cv::Mat& matrixH) {
     sourcePoints.push_back(points[7]);
 
     matrixH = cv::findHomography(sourcePoints, targetPoints);
+    sourcePoints.clear();
+    targetPoints.clear();
 }
 
 void transformPixel(cv::Mat& matrixH, cv::Point3d& pixel) {
@@ -72,6 +74,7 @@ void perspectiveTransform(imageBW& input, cv::Mat& matrixH, std::vector<double>&
                 output.definePixel(i, j, value);
             }
         }
+        bounds.clear();
 }
 
 void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
@@ -120,6 +123,8 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
             }
         }
     input = edge;
+    edge.clear();
+    dedge.clear();
 }
 
 void findRuler(int& mode, int& screen, imageBW& image, std::vector<double>& threshold, std::vector<cv::Point2d>& screenQuad, std::vector<double>& windowSize, std::vector<double>& rulerX, std::vector<double>& rulerY) {
@@ -477,6 +482,10 @@ void findRuler(int& mode, int& screen, imageBW& image, std::vector<double>& thre
     imCrop.destroy();
     peak.clear();
     spacing.clear();
+    line.clear();
+    bounds.clear();
+    spacing.clear();
+    peak.clear();
 }
 
 void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& zeroPoint) {
@@ -527,6 +536,8 @@ void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vec
             }
         }
         imCrop.destroy();
+        bounds.clear();
+        line.clear();
     }
     zeroPoint.resize(2, 0.0);
     zeroPoint[0] = pxXCenter;
@@ -695,6 +706,12 @@ void pixelAxis(int& screen, int Nx, int Ny, std::vector<double>& rulerX, std::ve
             }
         }
     }
+    mmX.clear();
+    mmY.clear();
+    resX.clear();
+    resY.clear();
+    pxX.clear();
+    pxY.clear();
 }
 
 void screenCal(int mode, int& screen, spectrometer& eSpec, screenCalibration& calibration, cv::Mat& transformMatH, std::vector<double>& rulerX, std::vector<double>& rulerY) {
@@ -780,6 +797,8 @@ void screenCal(int mode, int& screen, spectrometer& eSpec, screenCalibration& ca
             plt::axis("off");
             plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
             plt::show();
+            plotX.clear();
+            plotY.clear();
         }
         else {
             bounds[0] = (int)std::max(std::min(std::min(viewQuad[0].x, viewQuad[1].x), std::min(viewQuad[2].x, viewQuad[3].x)) - 100, 0.0);
@@ -843,9 +862,16 @@ void screenCal(int mode, int& screen, spectrometer& eSpec, screenCalibration& ca
             plt::axis("off");
             plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
             plt::show();
+            plotX.clear();
+            plotY.clear();
         }
+        bounds.clear();
         imPlot.destroy();
     }
+    viewQuad.clear();
+    viewRes.clear();
+    viewThreshold.clear();
+    folderList.clear();
     image.destroy();
     imTransform.destroy();
 }
@@ -937,6 +963,9 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
         winRes[n] = bufferWR;
         zP[n] = bufferZP;
 
+        bufferWR.clear();
+        bufferZP.clear();
+
         cv::Mat bufferH = cv::Mat::zeros(3, 3, CV_64F);
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
@@ -983,6 +1012,7 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
             }
         }
         yRuler[n] = ruler;
+        ruler.clear();
     }
     int screen = 0;
     pixelAxis(screen, winRes[0][0], winRes[0][1], xRuler[0], yRuler[0], zP[0]);
@@ -990,5 +1020,9 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
     pixelAxis(screen, winRes[1][0], winRes[1][1], xRuler[1], yRuler[1], zP[1]);
     screen = 2;
     pixelAxis(screen, winRes[2][0], winRes[2][1], xRuler[2], yRuler[2], zP[2]);
+
+    winRes.clear();
+    zP.clear();
+    buffer.clear();
 }
 #endif

@@ -28,6 +28,16 @@ struct CvType {};
 template<>
 struct CvType<CV_64F> { typedef double type_t; };
 
+void clearCMD() {
+    #if defined _WIN32
+        system("cls");
+    #elif defined (__LINUX__) || defined(__gnu_linux__) || defined(__linux__)
+        system("clear");
+    #elif defined (__APPLE__)
+        system("clear");
+    #endif
+}
+
 class imageBW {
     double** data;
     size_t* size;
@@ -126,16 +136,15 @@ public:
     void destroy() {
         #pragma omp parallel for
         for (int i = 0; i < (int)size[0]; i++) {
-            data[i] = NULL;
+            data[i] = (double*)realloc(data[i], 0 * sizeof(double));
+            free(data[i]);
         }
         data = (double**)realloc(data, 0 * sizeof(double*));
         size = (size_t*)realloc(size, 0 * sizeof(size_t));
 
         free(data);
         free(size);
-
-        data = NULL;
-        size = NULL;
+        //_heapmin();
     }
 
     void definePixel(int indexX, int indexY, double value) {
@@ -429,6 +438,7 @@ void scanNewFile(std::string path, std::vector<std::string>& refList, std::vecto
         }
     refList.clear();
     refList = updateList;
+    updateList.clear();
 }
 
 bool findFile(std::vector<std::string> list, std::string file, std::string timeStamp, int &index) {
@@ -1214,6 +1224,7 @@ public:
                 winSize[i][1] = yH + winSize[i][1];
             }
         }
+        calibration.clear();
     }
 
     std::vector<cv::Point2d> viewQuad(int screen) {
@@ -1353,6 +1364,8 @@ public:
                 pointingAxis[1].push_back(pStart + dp * (double)i);
             }
         }
+        buffer.clear();
+        bufferM.clear();
     }
 
     std::vector<double> energy(int screen) { 
