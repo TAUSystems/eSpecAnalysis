@@ -920,6 +920,16 @@ void Sum(imageBW& image, double& sum) {
     sum = total_signal;
 }
 
+void Sum(std::vector<double>& input, double& sum) {
+    int N = (int)input.size();
+    double sum_buffer = 0.0;
+    #pragma omp parallel for reduction(+:sum_buffer)
+    for (int i = 0; i < N; i++) {
+        sum_buffer = sum_buffer + input[i];
+    }
+    sum = sum_buffer;
+}
+
 void Average(std::vector<double>& input, double& avg) {
     int N = (int)input.size();
     double avg_buffer = 0.0;

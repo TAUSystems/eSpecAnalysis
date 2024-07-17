@@ -220,8 +220,11 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 
 	//Find X peak
 	double lineMin = 255.0;
+	double lineSum = 0.0;
 	double linePV = 0.0;
+	double lineCV = 0.0;
 	int linePI = 0;
+	int indexBuffer = 0;
 
 	//Find minimum value
 	for (int i = 0; i < Nx; i++) {
@@ -239,6 +242,18 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 		}
 	}
 
+	#pragma omp parallel for reduction(+:linePV,lineSum)
+	for (int i = 0; i < Nx; i++) {
+		lineCV = lineCV + lineValuesX[i] * (double)i;
+		lineSum = lineSum + lineValuesX[i];
+	}
+	indexBuffer = (int)round(lineCV / lineSum);
+	if (lineValuesX[indexBuffer] > linePV) {
+		linePI = indexBuffer;
+		linePV = lineValuesX[linePI];
+	}
+
+	
 	double threshold = 10;
 	if (linePV > threshold) {
 		//Fit to gaussian using quad regression
@@ -300,8 +315,11 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 
 	//Find Y peak
 	lineMin = 255.0;
+	lineSum = 0.0;
 	linePV = 0.0;
+	lineCV = 0.0;
 	linePI = 0;
+	indexBuffer = 0;
 
 	//Find minimum value
 	for (int i = 0; i < Ny; i++) {
@@ -318,6 +336,18 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 			linePI = i;
 		}
 	}
+
+	#pragma omp parallel for reduction(+:linePV,lineSum)
+	for (int i = 0; i < Ny; i++) {
+		lineCV = lineCV + lineValuesY[i] * (double)i;
+		lineSum = lineSum + lineValuesY[i];
+	}
+	indexBuffer = (int)round(lineCV / lineSum);
+	if (lineValuesY[indexBuffer] > linePV) {
+		linePI = indexBuffer;
+		linePV = lineValuesX[linePI];
+	}
+
 
 	if(linePI > threshold){
 		//Fit to gaussian using quad regression
@@ -376,6 +406,7 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	else {
 		peak[1] = linePI;
 	}
+
 	peakValue = imSmooth.value(peak[0], peak[1]);
 	imSmooth.destroy();
 	lineValuesX.clear();
@@ -439,7 +470,7 @@ void mRadAxis(spectrometer& eSpec, int& screen, std::vector<double>& rulerX, std
 	}
 }
 
-void drawAxis(bool mode, double scale, spectrometer& eSpec, paramSpace & pSpace, int& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double pointing) {
+void drawAxis(bool mode, double& scale, spectrometer& eSpec, paramSpace& pSpace, int& screen, std::vector<double>& rulerX, std::vector<double>& rulerY, double& pointing) {
 	std::vector<double> pixelX, pixelY;
 	int Nx = (int)rulerX.size();
 	int Ny = (int)rulerY.size();
@@ -1339,6 +1370,8 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	medianFilter(imASmooth, 12.0);
 	medianFilter(imBSmooth, 12.0);
 
+	printf("Processed 3 Images.\n");
+
 	APix.resize(imA.sizeX(), 0.0);
 	sAEline.resize(imA.sizeX(), 0.0);
 
@@ -1400,61 +1433,6 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 		sBEline[i] = (sBEline[i] - minBuffer) / (maxBuffer - minBuffer);
 	}
 
-	int Apeak = 0;
-	double maxSignal = 0.0;
-	for (int i = 0; i < imA.sizeX(); i++) {
-		if (sAEline[i] > maxSignal) {
-			Apeak = i;
-			maxSignal = sAEline[i];
-		}
-	}
-
-	maxSignal = maxSignal / 2.0;
-
-	int Alow, Ahigh;
-	Alow = 0;
-	for (int i = 0; i < Apeak; i++) {
-		if (sAEline[i] >= maxSignal) {
-			Alow = i;
-			break;
-		}
-	}
-	Ahigh = Apeak;
-	for (int i = Apeak; i < imA.sizeX(); i++) {
-		if (sAEline[i] <= maxSignal) {
-			Ahigh = i;
-			break;
-		}
-	}
-
-	int Bpeak = 0;
-	maxSignal = 0.0;
-	for (int i = 0; i < imB.sizeX(); i++) {
-		if (sBEline[i] > maxSignal) {
-			Bpeak = i;
-			maxSignal = sBEline[i];
-		}
-	}
-
-	maxSignal = maxSignal / 2.0;
-
-	int Blow, Bhigh;
-	Blow = 0;
-	for (int i = 0; i < Bpeak; i++) {
-		if (sBEline[i] >= maxSignal) {
-			Blow = i;
-			break;
-		}
-	}
-	Bhigh = Bpeak;
-	for (int i = Bpeak; i < imB.sizeX(); i++) {
-		if (sBEline[i] <= maxSignal) {
-			Bhigh = i;
-			break;
-		}
-	}
-
-
 	std::vector<int> peak, peakBound;
 	std::vector<double> pointX, pointY;
 	pointX = xRuler[0];
@@ -1490,8 +1468,6 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	boundboxX[4] = acceptanceBound[0];
 	boundboxY[4] = acceptanceBound[2];
 
-	
-	printf("Loaded 3 Images.\n");
 	imageBW imBufferS, imBufferL;
 	imP.copy(imBufferL);
 	int maxValue = 0;
@@ -1553,23 +1529,81 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 		}
 	}
 
-	double ACenterEn, ASpreadEn, BCenterEn, BSpreadEn, inputBuffer, outputBuffer;
-	inputBuffer = (double)Apeak;
-	FE1DInterp(APix, xRuler[1], inputBuffer, outputBuffer);
-	inputBuffer = outputBuffer;
-	FE1DInterp(screenPos, EnAxis, inputBuffer, ACenterEn);
+	bool centroidCalc = false;
+	double ACenterEn, ASpreadEn, BCenterEn, BSpreadEn, count;
 
-	inputBuffer = (double)Alow;
-	FE1DInterp(APix, xRuler[1], inputBuffer, outputBuffer);
-	inputBuffer = outputBuffer;
-	FE1DInterp(screenPos, EnAxis, inputBuffer, ASpreadEn);
+	if (centroidCalc) {
+		ACenterEn = 0.0;
+		count = 0.0;
+		#pragma omp parallel for reduction(+:ACenterEn,count)
+		for (int i = 0; i < (int)imA.sizeX(); i++) {
+			double inputBuffer = (double)i;
+			double outputBuffer = 0.0;
+			FE1DInterp(APix, xRuler[1], inputBuffer, outputBuffer);
+			inputBuffer = outputBuffer;
+			FE1DInterp(screenPos, EnAxis, inputBuffer, outputBuffer);
+			ACenterEn = ACenterEn + sAEline[i] * outputBuffer;
+			count = count + sAEline[i];
+		}
+		ACenterEn = ACenterEn / count;
 
-	inputBuffer = (double)Ahigh;
-	FE1DInterp(APix, xRuler[1], inputBuffer, outputBuffer);
-	inputBuffer = outputBuffer;
-	FE1DInterp(screenPos, EnAxis, inputBuffer, outputBuffer);
-	ASpreadEn = ASpreadEn - outputBuffer;
+		#pragma omp parallel for reduction(+:ASpreadEn)
+		for (int i = 0; i < (int)imA.sizeX(); i++) {
+			double inputBuffer = (double)i;
+			double outputBuffer = 0.0;
+			FE1DInterp(APix, xRuler[1], inputBuffer, outputBuffer);
+			inputBuffer = outputBuffer;
+			FE1DInterp(screenPos, EnAxis, inputBuffer, outputBuffer);
+			outputBuffer = outputBuffer - ACenterEn;
+			ASpreadEn = ASpreadEn + outputBuffer * outputBuffer * sAEline[i];
+		}
+		ASpreadEn = 2.0 * sqrt(2.0 * log(2.0) * ASpreadEn / count);
+	}
+	else {
+		int Apeak = 0;
+		double maxSignal = 0.0;
+		for (int i = 0; i < imA.sizeX(); i++) {
+			if (sAEline[i] > maxSignal) {
+				Apeak = i;
+				maxSignal = sAEline[i];
+			}
+		}
 
+		maxSignal = maxSignal / 2.0;
+
+		int Alow, Ahigh;
+		Alow = 0;
+		for (int i = 0; i < Apeak; i++) {
+			if (sAEline[i] >= maxSignal) {
+				Alow = i;
+				break;
+			}
+		}
+		Ahigh = Apeak;
+		for (int i = Apeak; i < imA.sizeX(); i++) {
+			if (sAEline[i] <= maxSignal) {
+				Ahigh = i;
+				break;
+			}
+		}
+
+		double inputBuffer, outputBuffer;
+		inputBuffer = (double)Apeak;
+		FE1DInterp(APix, xRuler[1], inputBuffer, outputBuffer);
+		inputBuffer = outputBuffer;
+		FE1DInterp(screenPos, EnAxis, inputBuffer, ACenterEn);
+
+		inputBuffer = (double)Alow;
+		FE1DInterp(APix, xRuler[1], inputBuffer, outputBuffer);
+		inputBuffer = outputBuffer;
+		FE1DInterp(screenPos, EnAxis, inputBuffer, ASpreadEn);
+
+		inputBuffer = (double)Ahigh;
+		FE1DInterp(APix, xRuler[1], inputBuffer, outputBuffer);
+		inputBuffer = outputBuffer;
+		FE1DInterp(screenPos, EnAxis, inputBuffer, outputBuffer);
+		ASpreadEn = ASpreadEn - outputBuffer;
+	}
 
 	EnAxis = pSpace.energy(2);
 	PtAxis = pSpace.pointing(2);
@@ -1606,23 +1640,78 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 		}
 	}
 
-	inputBuffer = (double)Bpeak;
-	FE1DInterp(BPix, xRuler[2], inputBuffer, outputBuffer);
-	inputBuffer = outputBuffer;
-	FE1DInterp(screenPos, EnAxis, inputBuffer, BCenterEn);
+	if (centroidCalc) {
+		BCenterEn = 0.0;
+		count = 0.0;
+		#pragma omp parallel for reduction(+:BCenterEn,count)
+		for (int i = 0; i < (int)imB.sizeX(); i++) {
+			double inputBuffer = (double)i;
+			double outputBuffer = 0.0;
+			FE1DInterp(BPix, xRuler[2], inputBuffer, outputBuffer);
+			inputBuffer = outputBuffer;
+			FE1DInterp(screenPos, EnAxis, inputBuffer, outputBuffer);
+			BCenterEn = BCenterEn + sBEline[i] * outputBuffer;
+			count = count + sBEline[i];
+		}
+		BCenterEn = BCenterEn / count;
 
-	inputBuffer = (double)Blow;
-	FE1DInterp(BPix, xRuler[2], inputBuffer, outputBuffer);
-	inputBuffer = outputBuffer;
-	FE1DInterp(screenPos, EnAxis, inputBuffer, BSpreadEn);
+		#pragma omp parallel for reduction(+:BSpreadEn)
+		for (int i = 0; i < (int)imB.sizeX(); i++) {
+			double inputBuffer = (double)i;
+			double outputBuffer = 0.0;
+			FE1DInterp(BPix, xRuler[2], inputBuffer, outputBuffer);
+			inputBuffer = outputBuffer;
+			FE1DInterp(screenPos, EnAxis, inputBuffer, outputBuffer);
+			outputBuffer = outputBuffer - BCenterEn;
+			BSpreadEn = BSpreadEn + outputBuffer * outputBuffer * sBEline[i];
+		}
+		BSpreadEn = 2.0 * sqrt(2.0 * log(2.0) * BSpreadEn / count);
+	}
+	else {
+		int Bpeak = 0;
+		double maxSignal = 0.0;
+		for (int i = 0; i < imB.sizeX(); i++) {
+			if (sBEline[i] > maxSignal) {
+				Bpeak = i;
+				maxSignal = sBEline[i];
+			}
+		}
 
-	inputBuffer = (double)Bhigh;
-	FE1DInterp(BPix, xRuler[2], inputBuffer, outputBuffer);
-	inputBuffer = outputBuffer;
-	FE1DInterp(screenPos, EnAxis, inputBuffer, outputBuffer);
-	BSpreadEn = BSpreadEn - outputBuffer;
+		maxSignal = maxSignal / 2.0;
 
+		int Blow, Bhigh;
+		Blow = 0;
+		for (int i = 0; i < Bpeak; i++) {
+			if (sBEline[i] >= maxSignal) {
+				Blow = i;
+				break;
+			}
+		}
+		Bhigh = Bpeak;
+		for (int i = Bpeak; i < imB.sizeX(); i++) {
+			if (sBEline[i] <= maxSignal) {
+				Bhigh = i;
+				break;
+			}
+		}
 
+		double inputBuffer, outputBuffer;
+		inputBuffer = (double)Bpeak;
+		FE1DInterp(BPix, xRuler[2], inputBuffer, outputBuffer);
+		inputBuffer = outputBuffer;
+		FE1DInterp(screenPos, EnAxis, inputBuffer, BCenterEn);
+
+		inputBuffer = (double)Blow;
+		FE1DInterp(BPix, xRuler[2], inputBuffer, outputBuffer);
+		inputBuffer = outputBuffer;
+		FE1DInterp(screenPos, EnAxis, inputBuffer, BSpreadEn);
+
+		inputBuffer = (double)Bhigh;
+		FE1DInterp(BPix, xRuler[2], inputBuffer, outputBuffer);
+		inputBuffer = outputBuffer;
+		FE1DInterp(screenPos, EnAxis, inputBuffer, outputBuffer);
+		BSpreadEn = BSpreadEn - outputBuffer;
+	}
 	#pragma omp parallel for
 	for (int i = 0; i < imA.sizeX(); i++) {
 		sAEline[i] = imA.sizeY() * (1.0 - sAEline[i] / 3.0);
@@ -1632,6 +1721,8 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	for (int i = 0; i < imB.sizeX(); i++) {
 		sBEline[i] = imB.sizeY() * (1.0 - sBEline[i] / 3.0);
 	}
+
+	printf("Energy Spectrum Analyzed.\n");
 
 	double scale = 2;
 	double lw = 2.0 * scale;
@@ -1730,9 +1821,15 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	drawAxis(1, scale, eSpec, pSpace, screenA, xRuler[screenA], yRuler[screenA], pointing);
 	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 	std::string AEValue = std::to_string((int)std::round(ACenterEn));
-	plt::text((int)(0.825 * imA.sizeX()), (int)(0.250 * imA.sizeY()), std::string("Centroid Energy: ") + AEValue + std::string(" MeV"));
 	std::string AESValue = std::to_string((int)std::round(ASpreadEn));
-	plt::text((int)(0.825 * imA.sizeX()), (int)(0.325 * imA.sizeY()), std::string("Energy Spread: ") + AESValue + std::string(" MeV"));
+	if (centroidCalc) {
+		plt::text((int)(0.825 * imA.sizeX()), (int)(0.250 * imA.sizeY()), std::string("Centroid Energy: ") + AEValue + std::string(" MeV"));
+		plt::text((int)(0.825 * imA.sizeX()), (int)(0.325 * imA.sizeY()), std::string("Energy Spread: ") + AESValue + std::string(" MeV"));
+	}
+	else {
+		plt::text((int)(0.825 * imA.sizeX()), (int)(0.250 * imA.sizeY()), std::string("Peak Energy: ") + AEValue + std::string(" MeV"));
+		plt::text((int)(0.825 * imA.sizeX()), (int)(0.325 * imA.sizeY()), std::string("Energy Spread: ") + AESValue + std::string(" MeV"));
+	}
 	plt::axis("off");
 
 	printf("Drawing Energy B Image.\n");
@@ -1746,9 +1843,15 @@ void drawPointingAnalysis(spectrometer& eSpec, paramSpace& pSpace, std::vector<s
 	drawAxis(1, scale, eSpec, pSpace, screenB, xRuler[screenB], yRuler[screenB], pointing);
 	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 	std::string BEValue = std::to_string((int)std::round(BCenterEn));
-	plt::text((int)(0.825 * imB.sizeX()), (int)(0.250 * imB.sizeY()), std::string("Centroid Energy: ") + BEValue + std::string(" MeV"));
 	std::string BESValue = std::to_string((int)std::round(BSpreadEn));
-	plt::text((int)(0.825 * imB.sizeX()), (int)(0.325 * imB.sizeY()), std::string("Energy Spread: ") + BESValue + std::string(" MeV"));
+	if (centroidCalc) {
+		plt::text((int)(0.825 * imB.sizeX()), (int)(0.250 * imB.sizeY()), std::string("Centroid Energy: ") + BEValue + std::string(" MeV"));
+		plt::text((int)(0.825 * imB.sizeX()), (int)(0.325 * imB.sizeY()), std::string("Energy Spread: ") + BESValue + std::string(" MeV"));
+	}
+	else {
+		plt::text((int)(0.825 * imB.sizeX()), (int)(0.250 * imB.sizeY()), std::string("Peak Energy: ") + BEValue + std::string(" MeV"));
+		plt::text((int)(0.825 * imB.sizeX()), (int)(0.325 * imB.sizeY()), std::string("Energy Spread: ") + BESValue + std::string(" MeV"));
+	}
 	plt::axis("off");
 
 	printf("Drawing Canvas.\n");
