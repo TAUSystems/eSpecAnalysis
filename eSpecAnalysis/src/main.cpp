@@ -32,6 +32,7 @@ int analyze_espec_images(const char* filepath_eScreenA, const char* filepath_eSc
     calibration.loadCalibration(pathCalibration);
 
     int screen;
+
     switch (operatingMode) {
         case 1:
             screen = 1;

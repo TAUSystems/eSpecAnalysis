@@ -40,23 +40,34 @@ struct CvType {};
 template<>
 struct CvType<CV_64F> { typedef double type_t; };
 
+void clearCMD() {
+    #if defined _WIN32
+        system("cls");
+    #elif defined (__LINUX__) || defined(__gnu_linux__) || defined(__linux__)
+        system("clear");
+    #elif defined (__APPLE__)
+        system("clear");
+    #endif
+}
+
 class imageBW {
     double** data;
     size_t* size;
 public:
     imageBW() {
-        data = (double**)malloc(sizeof(double*));
-        data[0] = (double*)malloc(sizeof(double));
-        data[0][0] = 0.0;
-        size = (size_t*)malloc(sizeof(size_t) * 2);
-        size[0] = 1;
-        size[1] = 1;
+        data = (double**)malloc(0 * sizeof(double*));
+        //data[0] = (double*)malloc(sizeof(double));
+        //data[0][0] = 0.0;
+        size = (size_t*)malloc(sizeof(size_t) * 0);
+        //size[0] = 0;
+        //size[1] = 0;
     }
 
     void resize(int Nx, int Ny) {
+        size = (size_t*)realloc(size, 2 * sizeof(size_t));
         size[0] = (size_t)Nx;
         size[1] = (size_t)Ny;
-        data = (double**)malloc(sizeof(double*) * size[0]);
+        data = (double**)realloc(data, sizeof(double*) * size[0]);
 
         #pragma omp parallel for
             for (int i = 0; i < (int)size[0]; i++) {
@@ -68,9 +79,10 @@ public:
     }
 
     void resize(size_t Nx, size_t Ny) {
+        size = (size_t*)realloc(size, 2 * sizeof(size_t));
         size[0] = Nx;
         size[1] = Ny;
-        data = (double**)malloc(sizeof(double*) * size[0]);
+        data = (double**)realloc(data, sizeof(double*) * size[0]);
 
         #pragma omp parallel for
             for (int i = 0; i < (int)size[0]; i++) {
@@ -82,9 +94,10 @@ public:
     }
 
     void resize(std::vector<size_t> winSize) {
+        size = (size_t*)realloc(size, 2 * sizeof(size_t));
         size[0] = winSize[0];
         size[1] = winSize[1];
-        data = (double**)malloc(sizeof(double*) * size[0]);
+        data = (double**)realloc(data, sizeof(double*) * size[0]);
 
         #pragma omp parallel for
             for (int i = 0; i < (int)size[0]; i++) {
@@ -96,9 +109,11 @@ public:
     }
 
     void resize(cv::Size imgSize) {
+        size = (size_t*)realloc(size, 2 * sizeof(size_t));
         size[0] = imgSize.width;
         size[1] = imgSize.height;
-        data = (double**)malloc(sizeof(double*) * size[0]);
+
+        data = (double**)realloc(data, sizeof(double*) * size[0]);
 
         #pragma omp parallel for
             for (int i = 0; i < (int)size[0]; i++) {
@@ -110,6 +125,7 @@ public:
     }
 
     void resize(std::vector<cv::Point2d> bounds) {
+        size = (size_t*)realloc(size, 2 * sizeof(size_t));
         int NsX, NfX, NsY, NfY;
         NsX = std::min(std::min((int)bounds[0].x, (int)bounds[1].x), std::min((int)bounds[2].x, (int)bounds[3].x));
         NfX = std::max(std::max((int)bounds[0].x, (int)bounds[1].x), std::max((int)bounds[2].x, (int)bounds[3].x));
@@ -117,7 +133,8 @@ public:
         NfY = std::max(std::max((int)bounds[0].y, (int)bounds[1].y), std::max((int)bounds[2].y, (int)bounds[3].y));
         size[0] = (size_t)(NfX - NsX);
         size[1] = (size_t)(NfY - NsY);
-        data = (double**)malloc(sizeof(double*) * size[0]);
+        
+        data = (double**)realloc(data, sizeof(double*) * size[0]);
 
         #pragma omp parallel for
             for (int i = 0; i < (int)size[0]; i++) {
@@ -129,18 +146,17 @@ public:
     }
 
     void destroy() {
-        for (int i = 0; i < size[0]; i++) {
+        #pragma omp parallel for
+        for (int i = 0; i < (int)size[0]; i++) {
+            data[i] = (double*)realloc(data[i], 0 * sizeof(double));
             free(data[i]);
         }
+        data = (double**)realloc(data, 0 * sizeof(double*));
+        size = (size_t*)realloc(size, 0 * sizeof(size_t));
+
         free(data);
         free(size);
-
-        data = (double**)malloc(sizeof(double*));
-        data[0] = (double*)malloc(sizeof(double));
-        data[0][0] = 0.0;
-        size = (size_t*)malloc(sizeof(size_t) * 2);
-        size[0] = 1;
-        size[1] = 1;
+        //_heapmin();
     }
 
     void definePixel(int indexX, int indexY, double value) {
@@ -252,6 +268,19 @@ public:
                     output.definePixel(i, j, data[Ni][Nj]);
                 }
             }
+    }
+    
+    void copy(imageBW& output) {
+        int Nx, Ny;
+        Nx = size[0];
+        Ny = size[1];
+        output.resize(Nx, Ny);
+        #pragma omp parallel for
+        for (int i = 0; i < Nx; i++) {
+            for (int j = 0; j < Ny; j++) {
+                output.definePixel(i, j, data[i][j]);
+            }
+        }
     }
 };
 
@@ -404,6 +433,7 @@ void readFile(std::string& pathFile, std::vector<std::string>& fileContent) {
     }
     size_t N = fileContent.size() - 1;
     fileContent.resize(N);
+    file.close();
 }
 
 void getOpParameters(std::vector<std::string>& settingsParameters, int& mode, double& rate, double& timeout) {
@@ -449,6 +479,7 @@ void scanNewFile(std::string path, std::vector<std::string>& refList, std::vecto
         }
     refList.clear();
     refList = updateList;
+    updateList.clear();
 }
 
 bool findFile(std::vector<std::string> list, std::string file, std::string timeStamp, int &index) {
@@ -485,9 +516,11 @@ void getImage(std::string file, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
+        buffer64f.release();
     }
     else if (buffer.type() == 6) {
         bitDepth = 64;
@@ -496,7 +529,8 @@ void getImage(std::string file, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer.at<double>(j, i);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
     }
@@ -510,14 +544,16 @@ void getImage(std::string file, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
+        buffer64f.release();
     }
-    
+    buffer.release();
 }
 
-void getImage(cv::Mat input, imageBW& output) {
+void getImage(cv::Mat& input, imageBW& output) {
     int bitDepth;
     if (input.empty()) {
         std::cout << "Image Not Found.\n";
@@ -535,9 +571,11 @@ void getImage(cv::Mat input, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
+        buffer64f.release();
     }
     else if (input.type() == 6) {
         bitDepth = 64;
@@ -546,7 +584,8 @@ void getImage(cv::Mat input, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = input.at<double>(j, i);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
     }
@@ -560,14 +599,17 @@ void getImage(cv::Mat input, imageBW& output) {
             for (int i = 0; i < imgSize.width; i++) {
                 for (int j = 0; j < imgSize.height; j++) {
                     double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    output.definePixel(i, j, pxValue);
+                    int jinv = imgSize.height - j;
+                    output.definePixel(i, jinv, pxValue);
                 }
             }
+
+        buffer64f.release();
     }
 
 }
 
-void imgshow(imageBW image) {
+void imgshow(imageBW& image) {
     int Nx = (int)image.sizeX();
     int Ny = (int)image.sizeY();
     cv::Mat buffer(Ny, Nx, CV_64F);
@@ -576,13 +618,15 @@ void imgshow(imageBW image) {
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
                 double pxBuffer = image.value(i, j);
-                buffer.at<CvType<CV_64F>::type_t>(j, i) = pxBuffer;
+                int jinv = Ny - j;
+                buffer.at<CvType<CV_64F>::type_t>(jinv, i) = pxBuffer;
             }
         }
 
     cv::namedWindow(" ", cv::WINDOW_AUTOSIZE);
     cv::imshow(" ", buffer);
     cv::waitKey(0);
+    buffer.release();
 }
 
 void resizeImage(double& scaling, std::string& inputFile, std::string& outputFile) {
@@ -594,7 +638,11 @@ void resizeImage(double& scaling, std::string& inputFile, std::string& outputFil
     width = (int)(round((double)buffer.size().width * scaling));
     height = (int)(round((double)buffer.size().height * scaling));
     cv::resize(buffer, output, cv::Size(width, height), cv::INTER_CUBIC);
+    
     cv::imwrite(outputFile, output);
+    input.release();
+    buffer.release();
+    output.release();
 }
 
 /**
@@ -1300,6 +1348,7 @@ public:
                 winSize[i][1] = yH + winSize[i][1];
             }
         }
+        calibration.clear();
     }
 
     std::vector<cv::Point2d> viewQuad(int screen) {
@@ -1451,6 +1500,8 @@ public:
                 pointingAxis[1].push_back(pStart + dp * (double)i);
             }
         }
+        buffer.clear();
+        bufferM.clear();
     }
 
     std::vector<double> getEnergyAxis(int screen) { 

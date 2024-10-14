@@ -29,6 +29,8 @@ void homographyMat(std::vector<cv::Point2d> points, cv::Mat& matrixH) {
     sourcePoints.push_back(points[7]);
 
     matrixH = cv::findHomography(sourcePoints, targetPoints);
+    sourcePoints.clear();
+    targetPoints.clear();    
 }
 
 /**
@@ -58,7 +60,7 @@ void transformPixel(cv::Mat& matrixH, cv::Point3d& pixel) {
  * @param windowSize x and y window size
  * @param output image
  */
-void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& windowSize, imageBW& output) {
+void perspectiveTransform(imageBW& input, cv::Mat& matrixH, std::vector<double>& windowSize, imageBW& output) {
     size_t Nx = (size_t)windowSize[0];
     size_t Ny = (size_t)windowSize[1];
 
@@ -73,30 +75,31 @@ void perspectiveTransform(imageBW& input, cv::Mat matrixH, std::vector<double>& 
     input.crop(bounds, output);
 
     #pragma omp parallel for
-        for (int i = 0; i < Nx; i++) {
-            for (int j = 0; j < Ny; j++) {
-                cv::Point3d pixel((double)i, (double)j, 1.0);
-                transformPixel(matrixH, pixel);
-                int iPrime = (int)round(pixel.x / pixel.z);
-                int jPrime = (int)round(pixel.y / pixel.z);
-                jPrime = input.sizeY() - 1 - jPrime;
-                if (iPrime < 0) {
-                    iPrime = 0;
-                }
-                if (jPrime < 0) {
-                    jPrime = 0;
-                }
-                if (iPrime > (input.sizeX() - 1)) {
-                    iPrime = (input.sizeX() - 1);
-                }
-                if (jPrime > (input.sizeY() - 1)) {
-                    jPrime = (input.sizeY() - 1);
-                }
-                double value = input.value(iPrime, jPrime);
-                //imageInterp(input, iPrime, jPrime, value);
-                output.definePixel(i, j, value);
+    for (int i = 0; i < Nx; i++) {
+        for (int j = 0; j < Ny; j++) {
+            cv::Point3d pixel((double)i, (double)j, 1.0);
+            transformPixel(matrixH, pixel);
+            int iPrime = (int)round(pixel.x / pixel.z);
+            int jPrime = (int)round(pixel.y / pixel.z);
+            jPrime = input.sizeY() - 1 - jPrime;
+            if (iPrime < 0) {
+                iPrime = 0;
             }
+            if (jPrime < 0) {
+                jPrime = 0;
+            }
+            if (iPrime > (input.sizeX() - 1)) {
+                iPrime = (input.sizeX() - 1);
+            }
+            if (jPrime > (input.sizeY() - 1)) {
+                jPrime = (input.sizeY() - 1);
+            }
+            double value = input.value(iPrime, jPrime);
+            //imageInterp(input, iPrime, jPrime, value);
+            output.definePixel(i, j, value);
         }
+    }
+    bounds.clear();
 }
 
 /**
@@ -156,6 +159,8 @@ void edgeFind1D(int mode, double threshold, std::vector<double>& input) {
             }
         }
     input = edge;
+    edge.clear();
+    dedge.clear();    
 }
 
 void findRuler(int& mode, int& screen, imageBW& image, std::vector<double>& threshold, std::vector<cv::Point2d>& screenQuad, std::vector<double>& windowSize, std::vector<double>& rulerX, std::vector<double>& rulerY) {
@@ -510,8 +515,13 @@ void findRuler(int& mode, int& screen, imageBW& image, std::vector<double>& thre
             loop = 0;
         }
     }
+    imCrop.destroy();
     peak.clear();
     spacing.clear();
+    line.clear();
+    bounds.clear();
+    spacing.clear();
+    peak.clear();
 }
 
 void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& zeroPoint) {
@@ -561,6 +571,9 @@ void findZero(int& screen, imageBW& image, std::vector<double>& rulerX, std::vec
                 pxXCenter = i + bounds[0];
             }
         }
+        imCrop.destroy();
+        bounds.clear();
+        line.clear();        
     }
     zeroPoint.resize(2, 0.0);
     zeroPoint[0] = pxXCenter;
@@ -756,6 +769,12 @@ void pixelAxis(ScreenName screen, int Nx, int Ny, std::vector<double>& rulerX, s
             }
         }
     }
+    mmX.clear();
+    mmY.clear();
+    resX.clear();
+    resY.clear();
+    pxX.clear();
+    pxY.clear();    
 }
 
 void screenCal(int mode, int& screen, spectrometer& eSpec, screenCalibration& calibration, cv::Mat& transformMatH, std::vector<double>& rulerX, std::vector<double>& rulerY) {
@@ -841,6 +860,8 @@ void screenCal(int mode, int& screen, spectrometer& eSpec, screenCalibration& ca
             plt::axis("off");
             plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
             plt::show();
+            plotX.clear();
+            plotY.clear();            
         }
         else {
             bounds[0] = (int)std::max(std::min(std::min(viewQuad[0].x, viewQuad[1].x), std::min(viewQuad[2].x, viewQuad[3].x)) - 100, 0.0);
@@ -904,8 +925,18 @@ void screenCal(int mode, int& screen, spectrometer& eSpec, screenCalibration& ca
             plt::axis("off");
             plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
             plt::show();
+            plotX.clear();
+            plotY.clear();
         }
+        bounds.clear();
+        imPlot.destroy();
     }
+    viewQuad.clear();
+    viewRes.clear();
+    viewThreshold.clear();
+    folderList.clear();
+    image.destroy();
+    imTransform.destroy();
 }
 
 void writeCalibration(std::string calPath, std::vector<std::vector<int>>& winRes, std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xRuler, std::vector<std::vector<double>>& yRuler, std::vector<std::vector<double>>& zP) {
@@ -1004,6 +1035,9 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& homographyMatric
         winRes[n] = bufferWR;
         zP[n] = bufferZP;
 
+        bufferWR.clear();
+        bufferZP.clear();
+
         cv::Mat bufferH = cv::Mat::zeros(3, 3, CV_64F);
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
@@ -1015,6 +1049,7 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& homographyMatric
             }
         }
         homographyMatrices[n] = bufferH;
+        bufferH.release();        
 
         bool loop = 1;
         std::vector<double> ruler;
@@ -1049,10 +1084,15 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& homographyMatric
             }
         }
         yRuler[n] = ruler;
+        ruler.clear();        
     }
     
     pixelAxis(Pointing, winRes[Pointing][0], winRes[Pointing][1], xRuler[Pointing], yRuler[Pointing], zP[Pointing]);
     pixelAxis(LowEnergy, winRes[LowEnergy][0], winRes[LowEnergy][1], xRuler[LowEnergy], yRuler[LowEnergy], zP[LowEnergy]);
     pixelAxis(HighEnergy, winRes[HighEnergy][0], winRes[HighEnergy][1], xRuler[HighEnergy], yRuler[HighEnergy], zP[HighEnergy]);
+
+    winRes.clear();
+    zP.clear();
+    buffer.clear();    
 }
 #endif

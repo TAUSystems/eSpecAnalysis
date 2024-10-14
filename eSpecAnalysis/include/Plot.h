@@ -27,6 +27,8 @@ void plot2D(std::vector<double> &x, std::vector<double> &y, std::string label) {
 	std::map<std::string, std::string> keywords;
 	keywords.insert(std::pair<std::string, std::string>("label", label));
 	plt::plot(xAxis, yAxis, keywords);
+	xAxis.clear();
+	yAxis.clear();
 }
 
 void plot2DLog(std::vector<double>& x, std::vector<double>& y) {
@@ -46,6 +48,8 @@ void plot2DLog(std::vector<double>& x, std::vector<double>& y) {
 	}
 
 	plt::semilogy(xAxis, yAxis);
+	xAxis.clear();
+	yAxis.clear();
 }
 
 void plot3D(std::vector<double>& x, std::vector<double>& y, imageBW& z, std::string label) {
@@ -74,6 +78,9 @@ void plot3D(std::vector<double>& x, std::vector<double>& y, imageBW& z, std::str
 	std::map<std::string, std::string> keywords;
 	keywords.insert(std::pair<std::string, std::string>("label", label));
 	plt::contour(xAxis, yAxis, zAxis, keywords);
+	xAxis.clear();
+	yAxis.clear();
+	zAxis.clear();
 }
 
 void plot3D(std::vector<double>& x, std::vector<double>& y, std::vector<std::vector<double>>& z, std::string label) {
@@ -102,6 +109,9 @@ void plot3D(std::vector<double>& x, std::vector<double>& y, std::vector<std::vec
 	std::map<std::string, std::string> keywords;
 	keywords.insert(std::pair<std::string, std::string>("label", label));
 	plt::plot_surface(xAxis, yAxis, zAxis, keywords);
+	xAxis.clear();
+	yAxis.clear();
+	zAxis.clear();
 }
 
 void pltimshow(imageBW& image, bool invert, std::string label) {
@@ -136,6 +146,7 @@ void pltimshow(imageBW& image, bool invert, std::string label) {
 	std::map<std::string, std::string> keywords;
 	keywords.insert(std::pair<std::string, std::string>("label", label));
 	plt::imshow(buffer_ptr, Ny, Nx, colors, keywords);
+	buffer.clear();
 }
 
 #endif
