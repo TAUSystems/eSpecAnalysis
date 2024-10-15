@@ -12,8 +12,10 @@
  * @param peakValue output (smoothed) value at peak
  */
 void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
-	imageBW imSmooth = image;
-	medianFilter(imSmooth, 3);
+	imageBW imSmooth;
+	image.copy(imSmooth);
+	removeOutlier(imSmooth, 4.0);
+	medianFilter(imSmooth, 12);
 	int Nx = imSmooth.sizeX();
 	int Ny = imSmooth.sizeY();
 	peak.resize(2, 0);
@@ -21,47 +23,55 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	peak[0] = 0;
 	peak[1] = 0;
 
-	std::vector<int> linePeaksX,linePeaksY;
-	std::vector<double> lineValuesX,lineValuesY;
-	linePeaksX.resize(Nx, 0);
+	std::vector<double> lineValuesX, lineValuesY;
 	lineValuesX.resize(Nx, 0.0);
-	#pragma omp parallel for
+	lineValuesY.resize(Ny, 0.0);
+	
 	for (int i = 0; i < Nx; i++) {
-		std::vector<double> line;
-		line.resize(Ny, 0.0);
-		double lineMin = 255.0;
-		int linePI = linePeaksX[i];
-		double linePV = imSmooth.value(i,linePI);
-		double lineMean = 0.0;
-		double lineSTD = 0.0;
-
-		//Find minimum value
 		for (int j = 0; j < Ny; j++) {
-			line[j] = imSmooth.value(i, j);
-			lineMean = lineMean + line[j];
-			if (line[j] < lineMin) {
-				lineMin = line[j];
-			}
+			lineValuesX[i] = lineValuesX[i] + imSmooth.value(i, j) * imSmooth.value(i, j) / Nx;
+			lineValuesY[j] = lineValuesY[j] + imSmooth.value(i, j) * imSmooth.value(i, j) / Ny;
 		}
-		lineMean = lineMean / Ny;
+	}
 
-		for (int j = 0; j < Ny; j++) {
-			lineSTD = lineSTD + (line[j] - lineMean) * (line[j] - lineMean);
+	//Find X peak
+	double lineMin = 255.0;
+	double lineSum = 0.0;
+	double linePV = 0.0;
+	double lineCV = 0.0;
+	int linePI = 0;
+	int indexBuffer = 0;
+
+	//Find minimum value
+	for (int i = 0; i < Nx; i++) {
+		if (lineValuesX[i] < lineMin) {
+			lineMin = lineValuesX[i];
 		}
-		lineSTD = lineSTD / sqrt(Ny);
-		lineMean = lineMean / Ny - lineMin + 1.0e-9;
+	}
 
-		//Shift by minimum and find maximum location and value
-		for (int j = 0; j < Ny; j++) {
-			line[j] = line[j] - lineMin + 1.0e-9;
-			if (line[j] > linePV) {
-				if (line[j] < lineMean + 4.0 * lineSTD) {
-					linePV = line[j];
-					linePI = j;
-				}
-			}
+	//Shift by minimum and find maximum location and value
+	for (int i = 0; i < Nx; i++) {
+		lineValuesX[i] = lineValuesX[i] - lineMin + 1.0e-9;
+		if (lineValuesX[i] > linePV) {
+			linePV = lineValuesX[i];
+			linePI = i;
 		}
+	}
 
+	#pragma omp parallel for reduction(+:linePV,lineSum)
+	for (int i = 0; i < Nx; i++) {
+		lineCV = lineCV + lineValuesX[i] * (double)i;
+		lineSum = lineSum + lineValuesX[i];
+	}
+	indexBuffer = (int)round(lineCV / lineSum);
+	if (lineValuesX[indexBuffer] > linePV) {
+		linePI = indexBuffer;
+		linePV = lineValuesX[linePI];
+	}
+
+	
+	double threshold = 10;
+	if (linePV > threshold) {
 		//Fit to gaussian using quad regression
 		double xValue, yValue, a1, a2, a0;
 		int N, index;
@@ -69,15 +79,15 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 		cv::Mat quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
 
 		//Set fit window size
-		N = (int)std::min(std::min((double)linePI, (double)(Ny - linePI)) - 1, 250.0);
+		N = (int)std::min(std::min((double)linePI, (double)(Nx - linePI)) - 1, 250.0);
 		sumX.resize(5, 0.0);
 		sumY.resize(3, 0.0);
 
 		for (int i = 0; i < 2 * N + 1; i++) {
 			xValue = (double)i + (double)linePI - (double)N;
 			index = linePI + i - N;
-			yValue = -log(line[index]/(linePV + 1.0e-9));
-			
+			yValue = -log(lineValuesX[index] / (linePV + 1.0e-9));
+
 			sumX[0] = sumX[0] + 1;
 			sumX[1] = sumX[1] + xValue;
 			sumX[2] = sumX[2] + xValue * xValue;
@@ -104,101 +114,123 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 		a1 = sumY[2] * quadRegMat.at<double>(1, 0) + sumY[1] * quadRegMat.at<double>(1, 1) + sumY[0] * quadRegMat.at<double>(1, 2);
 		a0 = sumY[2] * quadRegMat.at<double>(2, 0) + sumY[1] * quadRegMat.at<double>(2, 1) + sumY[0] * quadRegMat.at<double>(2, 2);
 
-		xValue = - a1 / (2.0 * a2);
-		if (xValue >= 0.0 && xValue < Ny) {
-			linePeaksX[i] = (int)xValue;
+		xValue = -a1 / (2.0 * a2);
+		if (xValue >= 0.0 && xValue < Nx) {
+			peak[0] = (int)xValue;
 		}
 		else {
-			linePeaksX[i] = linePI;
+			peak[0] = linePI;
 		}
-		lineValuesX[i] = a2 * xValue * xValue + a1 * xValue + a0;
-		lineValuesX[i] = exp(-lineValuesX[i]) * (linePV + 1.0e-9) + lineMin - 1.0e-9;
-	}
-
-	for (int i = 0; i < Nx; i++) {
-		if (lineValuesX[i] > peakValue) {
-			peak[0] = i;
-			peak[1] = linePeaksX[i];
-			peakValue = lineValuesX[i];
-		}
-	}
-
-	std::vector<double> line;
-	line.resize(Nx, 0.0);
-	double lineMin = 255.0;
-	int linePI = 0;
-	double linePV = imSmooth.value(linePI, peak[1]);
-
-	//Find minimum value
-	for (int j = 0; j < Nx; j++) {
-		line[j] = imSmooth.value(j, peak[1]);
-		if (line[j] < lineMin) {
-			lineMin = line[j];
-		}
-	}
-
-	//Shift by minimum and find maximum location and value
-	for (int j = 0; j < Nx; j++) {
-		line[j] = line[j] - lineMin + 1.0e-9;
-		if (line[j] > linePV) {
-			linePV = line[j];
-			linePI = j;
-		}
-	}
-
-	//Fit to gaussian using quad regression
-	double xValue, yValue, a1, a2, a0;
-	int N, index;
-	std::vector<double> sumX, sumY;
-	cv::Mat quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
-
-	//Set fit window size
-	N = (int)std::min(std::min((double)linePI, (double)(Nx - linePI)) - 1, 250.0);
-	sumX.resize(5, 0.0);
-	sumY.resize(3, 0.0);
-
-	for (int i = 0; i < 2 * N + 1; i++) {
-		xValue = (double)i + (double)linePI - (double)N;
-		index = linePI + i - N;
-		yValue = -log(line[index] / (linePV + 1.0e-9));
-
-		sumX[0] = sumX[0] + 1;
-		sumX[1] = sumX[1] + xValue;
-		sumX[2] = sumX[2] + xValue * xValue;
-		sumX[3] = sumX[3] + xValue * xValue * xValue;
-		sumX[4] = sumX[4] + xValue * xValue * xValue * xValue;
-		sumY[0] = sumY[0] + yValue;
-		sumY[1] = sumY[1] + yValue * xValue;
-		sumY[2] = sumY[2] + yValue * xValue * xValue;
-	}
-
-	quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
-	quadRegMat.at<CvType<CV_64F>::type_t>(0, 0) = sumX[4];
-	quadRegMat.at<CvType<CV_64F>::type_t>(0, 1) = sumX[3];
-	quadRegMat.at<CvType<CV_64F>::type_t>(0, 2) = sumX[2];
-	quadRegMat.at<CvType<CV_64F>::type_t>(1, 0) = sumX[3];
-	quadRegMat.at<CvType<CV_64F>::type_t>(1, 1) = sumX[2];
-	quadRegMat.at<CvType<CV_64F>::type_t>(1, 2) = sumX[1];
-	quadRegMat.at<CvType<CV_64F>::type_t>(2, 0) = sumX[2];
-	quadRegMat.at<CvType<CV_64F>::type_t>(2, 1) = sumX[1];
-	quadRegMat.at<CvType<CV_64F>::type_t>(2, 2) = sumX[0];
-
-	quadRegMat = quadRegMat.inv();
-	a2 = sumY[2] * quadRegMat.at<double>(0, 0) + sumY[1] * quadRegMat.at<double>(0, 1) + sumY[0] * quadRegMat.at<double>(0, 2);
-	a1 = sumY[2] * quadRegMat.at<double>(1, 0) + sumY[1] * quadRegMat.at<double>(1, 1) + sumY[0] * quadRegMat.at<double>(1, 2);
-	a0 = sumY[2] * quadRegMat.at<double>(2, 0) + sumY[1] * quadRegMat.at<double>(2, 1) + sumY[0] * quadRegMat.at<double>(2, 2);
-
-	xValue = -a1 / (2.0 * a2);
-	if (xValue >= 0.0 && xValue < Nx) {
-		peak[0] = (int)xValue;
+		quadRegMat.release();
+		sumX.clear();
+		sumY.clear();
 	}
 	else {
 		peak[0] = linePI;
 	}
+
+	//Find Y peak
+	lineMin = 255.0;
+	lineSum = 0.0;
+	linePV = 0.0;
+	lineCV = 0.0;
+	linePI = 0;
+	indexBuffer = 0;
+
+	//Find minimum value
+	for (int i = 0; i < Ny; i++) {
+		if (lineValuesY[i] < lineMin) {
+			lineMin = lineValuesY[i];
+		}
+	}
+
+	//Shift by minimum and find maximum location and value
+	for (int i = 0; i < Ny; i++) {
+		lineValuesY[i] = lineValuesY[i] - lineMin + 1.0e-9;
+		if (lineValuesY[i] > linePV) {
+			linePV = lineValuesY[i];
+			linePI = i;
+		}
+	}
+
+	#pragma omp parallel for reduction(+:linePV,lineSum)
+	for (int i = 0; i < Ny; i++) {
+		lineCV = lineCV + lineValuesY[i] * (double)i;
+		lineSum = lineSum + lineValuesY[i];
+	}
+	indexBuffer = (int)round(lineCV / lineSum);
+	if (lineValuesY[indexBuffer] > linePV) {
+		linePI = indexBuffer;
+		linePV = lineValuesX[linePI];
+	}
+
+
+	if(linePI > threshold){
+		//Fit to gaussian using quad regression
+		double xValue, yValue, a1, a2, a0;
+		int N, index;
+		std::vector<double> sumX, sumY;
+		cv::Mat quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
+
+		//Set fit window size
+		N = (int)std::min(std::min((double)linePI, (double)(Ny - linePI)) - 1, 250.0);
+		sumX.resize(5, 0.0);
+		sumY.resize(3, 0.0);
+
+		for (int i = 0; i < 2 * N + 1; i++) {
+			xValue = (double)i + (double)linePI - (double)N;
+			index = linePI + i - N;
+			yValue = -log(lineValuesY[index] / (linePV + 1.0e-9));
+
+			sumX[0] = sumX[0] + 1;
+			sumX[1] = sumX[1] + xValue;
+			sumX[2] = sumX[2] + xValue * xValue;
+			sumX[3] = sumX[3] + xValue * xValue * xValue;
+			sumX[4] = sumX[4] + xValue * xValue * xValue * xValue;
+			sumY[0] = sumY[0] + yValue;
+			sumY[1] = sumY[1] + yValue * xValue;
+			sumY[2] = sumY[2] + yValue * xValue * xValue;
+		}
+
+		quadRegMat = cv::Mat::zeros(3, 3, CV_64F);
+		quadRegMat.at<CvType<CV_64F>::type_t>(0, 0) = sumX[4];
+		quadRegMat.at<CvType<CV_64F>::type_t>(0, 1) = sumX[3];
+		quadRegMat.at<CvType<CV_64F>::type_t>(0, 2) = sumX[2];
+		quadRegMat.at<CvType<CV_64F>::type_t>(1, 0) = sumX[3];
+		quadRegMat.at<CvType<CV_64F>::type_t>(1, 1) = sumX[2];
+		quadRegMat.at<CvType<CV_64F>::type_t>(1, 2) = sumX[1];
+		quadRegMat.at<CvType<CV_64F>::type_t>(2, 0) = sumX[2];
+		quadRegMat.at<CvType<CV_64F>::type_t>(2, 1) = sumX[1];
+		quadRegMat.at<CvType<CV_64F>::type_t>(2, 2) = sumX[0];
+
+		quadRegMat = quadRegMat.inv();
+		a2 = sumY[2] * quadRegMat.at<double>(0, 0) + sumY[1] * quadRegMat.at<double>(0, 1) + sumY[0] * quadRegMat.at<double>(0, 2);
+		a1 = sumY[2] * quadRegMat.at<double>(1, 0) + sumY[1] * quadRegMat.at<double>(1, 1) + sumY[0] * quadRegMat.at<double>(1, 2);
+		a0 = sumY[2] * quadRegMat.at<double>(2, 0) + sumY[1] * quadRegMat.at<double>(2, 1) + sumY[0] * quadRegMat.at<double>(2, 2);
+
+		xValue = -a1 / (2.0 * a2);
+		if (xValue >= 0.0 && xValue < Nx) {
+			peak[1] = (int)xValue;
+		}
+		else {
+			peak[1] = linePI;
+		}
+		quadRegMat.release();
+		sumX.clear();
+		sumY.clear();
+	}
+	else {
+		peak[1] = linePI;
+	}
+
 	peakValue = imSmooth.value(peak[0], peak[1]);
+	imSmooth.destroy();
+	lineValuesX.clear();
+	lineValuesY.clear();
+	
 }
 
-void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rulerX, std::vector<double>&rulerY, std::vector<double>& pointing) {
+void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& pointing) {
 	std::vector<int> peak;
 	double peakValue;
 	findSignalPeak(image, peak, peakValue);
@@ -216,6 +248,7 @@ void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rule
 
 	pointing[0] = std::atan2(z, x);
 	pointing[1] = std::atan2(z, y);
+	peak.clear();
 }
 
 
@@ -414,40 +447,6 @@ void transformAxes(std::vector<double>& xAxis, std::vector<double>& yAxis, const
 	}
 }
 
-void loadFile_old(std::vector<std::string>& list, std::string& path, std::string& filename, std::string& timeStamp, cv::Mat& H, std::vector<double>& viewRes, uint& fileCount, imageBW& output) {
-	int fileLoopCount = 0;
-	bool fileFound = 0;
-	bool fileFindLoop = 1;
-	int index = -1;
-	double loopWait = 250;
-
-	imageBW imBuffer;
-	while (fileFindLoop) {
-		listDir(path, list);
-		fileFound = findFile(list, filename, timeStamp, index);
-		if (fileFound) {
-			fileFindLoop = 0;
-		}
-		else {
-			std::this_thread::sleep_for(std::chrono::milliseconds((long)loopWait));
-		}
-		if (fileLoopCount > 30) {
-			fileFindLoop = 0;
-			fileFound = 0;
-			std::cout << "Can not find file.\n";
-		}
-		fileLoopCount = fileLoopCount + 1;
-	}
-	if (fileFound) {
-		printf("Loading Image.\n");
-		getImage(list[index], imBuffer);
-		perspectiveTransform(imBuffer, H, viewRes, output);
-		removeOutlier(output, 4.0);
-		medianFilter(output, 2);
-		fileCount = fileCount + 5;
-	}
-}
-
 void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, imageBW& output) {
 	
 	imageBW imBuffer;
@@ -455,7 +454,8 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
 	getImage(filepath, imBuffer);
 	perspectiveTransform(imBuffer, H, viewRes, output);
 	removeOutlier(output, 4.0);
-	medianFilter(output, 2);
+	medianFilter(output, 2.0);
+	imBuffer.destroy();
 
 }
 
@@ -524,32 +524,43 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 	printf("Loaded 3 Images.\n");
 	
 	// analyze Pointing image
-	imageBW imBuffer;
+	imageBW imBufferS, imBufferL;
+	imP.copy(imBufferL);
 	int maxValue = 0;
 	bool flagP = 0;
 	bool flagB = 0;
 	// peakValue and totalValue correspond to the whole image, and peakValueB 
 	// and acceptValue only to that within the desired max transverse angle
 	double peakValue, peakValueB, totalValue, acceptValue;
-	imP.crop(acceptanceBound, imBuffer);
-	findSignalPeak(imBuffer, peakBound, peakValueB);
-	findSignalPeak(imP, peak, peakValue);
+	removeOutlier(imBufferL, 4.0);
+	medianFilter(imBufferL, 2);
+	imBufferL.crop(acceptanceBound, imBufferS);
+	findSignalPeak(imBufferS, peakBound, peakValueB);
+	findSignalPeak(imBufferL, peak, peakValue);
 	// put peakBound back into the whole image coordinates
 	peakBound[0] = peakBound[0] + acceptanceBound[0];
 	peakBound[1] = peakBound[1] + acceptanceBound[2];
-	eval = (double)((double)imP.sizeY() - 1 - peakBound[1]);
+	//eval = (double)((double)imBufferL.sizeY() - 1 - peakBound[1]);
+	eval = (double)(peakBound[1]);
 	FE1DInterp(pxY, yAxisPointing, eval, verticalPointingAngle);
 	maxValue = (int)round(peakValue * 10000);
 	Sum(imP, totalValue);
-	Sum(imBuffer, acceptValue);
+	Sum(imBufferS, acceptValue);
 	// totalValue and acceptValue are actualy mean pixel values
 	totalValue = round(totalValue / ((double)(imP.sizeX() * imP.sizeY())) * 10000);
-	acceptValue = round(acceptValue / ((double)(imBuffer.sizeX() * imBuffer.sizeY())) * 10000);
+	acceptValue = round(acceptValue / ((double)(imBufferS.sizeX() * imBufferS.sizeY())) * 10000);
+	imBufferS.destroy();
+	imBufferL.destroy();
 	printf("Found Pointing.\n");
 
+	double scale = 2;
+	double lw = 2.0 * scale;
+	double txtSize = 11 * scale;
+
+	
 	size_t resV, resH;
 	double ratio;
-	resH = 2224;
+	resH = 2224 * scale;
 	double spX, spY;
 	spY = ((double)imA.sizeY() + (double)imB.sizeY());
 	spX = (std::max((double)imP.sizeX(), (double)imB.sizeX()));
@@ -563,15 +574,19 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 
 	printf("Drawing Image.\n");
 	plt::figure_size(resH, resV);
+	
+
+	printf("Drawing Pointing Image.\n");
 	plt::subplot2grid(2, (int)((spY + spX) / spY), 0, 0, 2, 1);
-	pltimshow(imP, 1, "");
+	pltimshow(imP, 0, "");
 
+	plt::plot(boundboxX, boundboxY, { {"color","b"}, {"linewidth", std::to_string(lw)} });
 
-	plt::plot(boundboxX, boundboxY, { {"color","r"} });
-
+	/*
 	drawLineX[0] = 0;
 	drawLineX[1] = (int)imP.sizeX() - 1;
 	drawLineY[0] = (int)imP.sizeY() - 1 - peak[1];
+	//drawLineY[0] = peak[1];
 	drawLineY[1] = drawLineY[0];
 	plt::plot(drawLineX, drawLineY, { {"color","k"} });
 
@@ -580,20 +595,24 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 	drawLineY[0] = 0;
 	drawLineY[1] = (int)imP.sizeY() - 1;
 	plt::plot(drawLineX, drawLineY, { {"color","k"} });
+	*/
 
+	
 	drawLineX[0] = 0;
 	drawLineX[1] = (int)imP.sizeX() - 1;
-	drawLineY[0] = (int)imP.sizeY() - 1 - peakBound[1];
+	//drawLineY[0] = (int)imP.sizeY() - 1 - peakBound[1];
+	drawLineY[0] = peakBound[1];
 	drawLineY[1] = drawLineY[0];
-	plt::plot(drawLineX, drawLineY, { {"color","b"} });
+	plt::plot(drawLineX, drawLineY, { {"color","r"}, {"linewidth", std::to_string(lw)} });
 
 	drawLineX[0] = peakBound[0];
 	drawLineX[1] = drawLineX[0];
 	drawLineY[0] = 0;
 	drawLineY[1] = (int)imP.sizeY() - 1;
-	plt::plot(drawLineX, drawLineY, { {"color","b"} });
+	plt::plot(drawLineX, drawLineY, { {"color","r"}, {"linewidth", std::to_string(lw)} });
 
-	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"} });
+
+	plt::rcparams({ {"text.color", "w"}, {"font.weight", "bold"}, {"font.size", std::to_string(txtSize)} });
 	std::string pValue = std::to_string(verticalPointingAngle);
 	std::string mValue = std::to_string(maxValue);
 	std::string tValue = std::to_string((int)totalValue);
@@ -616,7 +635,6 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 			plt::text((int)(0.800 * imP.sizeX()), (int)(0.925 * imP.sizeY()), std::string("Error B"));
 		}
 	}
-
 	drawAxis(1, eSpec, pSpace, Pointing, xAxes[Pointing], yAxes[Pointing], verticalPointingAngle);
 
 	plt::axis("off");
@@ -636,6 +654,13 @@ void drawPointingAnalysis(spectrometer& eSpec, trajectoryEndpointSurfaces& pSpac
 	double scaling = 0.5;
 	resizeImage(scaling, filepath_spectrum, filepath_spectrum);
 	printf("Analysis Saved.\n");
+
+	peak.clear();
+	peakBound.clear();
+	acceptanceBound.clear();
+	drawLineX.clear();
+	drawLineY.clear();
+
 }
 
 
@@ -661,7 +686,7 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 				  std::vector<cv::Mat>& H, std::vector<std::vector<double>>& xAxes, std::vector<std::vector<double>>& yAxes
 				 ) {
 
-	std::vector<double> viewResA, viewResB, viewResP, lineBuffer, pxX, pxY;
+	std::vector<double> viewResA, viewResB, viewResP, pxX, pxY;
 	// (winSize_x, winSize_y) for each screen
 	viewResA = calibration.viewResolution(LowEnergy);
 	viewResB = calibration.viewResolution(HighEnergy);
@@ -679,10 +704,6 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 		}
 	}
 
-	plt::close();
-	imA.destroy();
-	imB.destroy(); 
-	imP.destroy();
 	uint fileCount = 0;
 
 	loadFile(filepath_eScreenA,  H[LowEnergy], viewResA, imA);
@@ -728,6 +749,17 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 			break;
 		}
 	}
+	
+	plt::close();
+	imA.destroy();
+	imB.destroy(); 
+	imP.destroy();
+
+	viewResA.clear();
+	viewResB.clear();
+	viewResP.clear();
+	pxX.clear();
+	pxY.clear();
 }
 
 #endif

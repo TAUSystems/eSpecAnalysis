@@ -97,6 +97,7 @@ void FE1DInterp(std::vector<double> &x, std::vector<double> &y, double &xEval, d
     else{
         output = y[2 * eleX] * psi[0] + y[2 * eleX + 1] * psi[1] + y[2 * eleX + 2] * psi[2];
     }
+    psi.clear();
 }
 
 void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vector<std::vector<double>>& surface, double& xEval, double& yEval, double& output) {
@@ -270,6 +271,8 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
                 + surface[2 * eleX + 2][2 * eleY + 2] * psiX[2] * psiY[2];
         }
     }
+    psiX.clear();
+    psiY.clear();
 }
 
 void imageInterp(imageBW & image, double& xEval, double& yEval, double& output) {
@@ -403,6 +406,8 @@ void imageInterp(imageBW & image, double& xEval, double& yEval, double& output) 
                 + image.value(2 * eleX + 2, 2 * eleY + 2) * psiX[2] * psiY[2];
         }
     }
+    psiX.clear();
+    psiY.clear();
 }
 
 void imageInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vector<std::vector<double>>& surface, double& xEval, double& yEval, double& output) {
@@ -576,6 +581,8 @@ void imageInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::ve
                 + surface[2 * eleX + 2][2 * eleY + 2] * psiX[2] * psiY[2];
         }
     }
+    psiX.clear();
+    psiY.clear();
 }
 
 void transpose(std::vector<std::vector<double>> &matrix) {
@@ -592,6 +599,7 @@ void transpose(std::vector<std::vector<double>> &matrix) {
             }
         }
     matrix = output;
+    output.clear();
 }
 
 void lineOut(bool normalize, double power, imageBW& Image, int AxisSum, std::vector<double>& output) {
@@ -629,13 +637,6 @@ void lineOut(bool normalize, double power, imageBW& Image, int AxisSum, std::vec
     else {
         Ni = (int)Image.sizeY();
         Nj = (int)Image.sizeX();
-
-        std::vector<int> indexT;
-        indexT.resize(Ni);
-        int countT = 0;
-        std::generate(std::begin(indexT), std::end(indexT), [&] {
-            return countT++;
-        });
 
         output.resize(Ni, 0.0);
         #pragma omp parallel for
@@ -680,6 +681,7 @@ void medianFilter(std::vector<double>& data, int windowRadius) {
                     }
                     std::sort(window.begin(), window.end());
                     filtered[i] = window[windowRadius + 1];
+                    window.clear();
                 }
                 else {
                     std::vector<double> window;
@@ -690,6 +692,7 @@ void medianFilter(std::vector<double>& data, int windowRadius) {
                     }
                     std::sort(window.begin(), window.end());
                     filtered[i] = window[windowRadius + 1];
+                    window.clear();
                 }
             }
             else {
@@ -700,10 +703,12 @@ void medianFilter(std::vector<double>& data, int windowRadius) {
                 }
                 std::sort(window.begin(), window.end());
                 filtered[i] = window[windowRadius + 1];
+                window.clear();
             }
         }
 
     data = filtered;
+    filtered.clear();
 }
 
 void medianFilter(imageBW& data, int windowRadius) {
@@ -845,7 +850,9 @@ void medianFilter(imageBW& data, int windowRadius) {
             }
         }
 
-    data = filtered;
+    data.destroy();
+    filtered.copy(data);
+    filtered.destroy();
 }
 
 void removeOutlier(imageBW& data, double sigmaOrder) {
@@ -911,6 +918,16 @@ void Sum(imageBW& image, double& sum) {
         total_signal = total_signal + image.value(indexX, indexY);
         }
     sum = total_signal;
+}
+
+void Sum(std::vector<double>& input, double& sum) {
+    int N = (int)input.size();
+    double sum_buffer = 0.0;
+    #pragma omp parallel for reduction(+:sum_buffer)
+    for (int i = 0; i < N; i++) {
+        sum_buffer = sum_buffer + input[i];
+    }
+    sum = sum_buffer;
 }
 
 void Average(std::vector<double>& input, double& avg) {
