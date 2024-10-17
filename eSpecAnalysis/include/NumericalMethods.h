@@ -720,46 +720,42 @@ void medianFilter(imageBW& data, int windowRadius) {
     imageBW filtered;
     filtered.resize(Nx, Ny);
     int indexW = (int)((Nw * Nw + 1) / 2);
-    #pragma omp parallel for
+    std::vector<double> window(Nw * Nw, 0.0);
+    // no pragma omp parallel for here because window is shared
+    // this is ok in single-processor environments
         for (int i = 0; i < Nx; i++) {
             if (i >= windowRadius) {
                 if (i < Nx - windowRadius) {
                     for (int j = 0; j < Ny; j++) {
                         if (j >= windowRadius) {
                             if (j < Ny - windowRadius) {
-                                std::vector<double> window(Nw * Nw, 0.0);
                                 for (int k = 0; k < Nw; k++) {
                                     for (int l = 0; l < Nw; l++) {
                                         window[k * Nw + l] = data.value(i + k - windowRadius, j + l - windowRadius);
                                     }
                                 }
-                                std::sort(window.begin(), window.end());
+                                std::nth_element(window.begin(), window.begin() + indexW, window.end());
                                 filtered.definePixel(i, j, window[indexW]);
-                                window.clear();
                             }
                             else {
-                                std::vector<double> window(Nw * Nw, 0.0);
                                 int l0 = Ny - 1 - j - 2 * windowRadius;
                                 for (int k = 0; k < Nw; k++) {
                                     for (int l = 0; l < Nw; l++) {
                                         window[k * Nw + l] = data.value(i + k - windowRadius, j + l + l0);
                                     }
                                 }
-                                std::sort(window.begin(), window.end());
+                                std::nth_element(window.begin(), window.begin() + indexW, window.end());
                                 filtered.definePixel(i, j, window[indexW]);
-                                window.clear();
                             }
                         }
                         else {
-                            std::vector<double> window(Nw * Nw, 0.0);
                             for (int k = 0; k < Nw; k++) {
                                 for (int l = 0; l < Nw; l++) {
                                     window[k * Nw + l] = data.value(i + k - windowRadius, l);
                                 }
                             }
-                            std::sort(window.begin(), window.end());
+                            std::nth_element(window.begin(), window.begin() + indexW, window.end());
                             filtered.definePixel(i, j, window[indexW]);
-                            window.clear();
                         }
 
                     }
@@ -769,39 +765,33 @@ void medianFilter(imageBW& data, int windowRadius) {
                     for (int j = 0; j < Ny; j++) {
                         if (j >= windowRadius) {
                             if (j < Ny - windowRadius) {
-                                std::vector<double> window(Nw * Nw, 0.0);
                                 for (int k = 0; k < Nw; k++) {
                                     for (int l = 0; l < Nw; l++) {
                                         window[k * Nw + l] = data.value(i + k + k0, j + l - windowRadius);
                                     }
                                 }
-                                std::sort(window.begin(), window.end());
+                                std::nth_element(window.begin(), window.begin() + indexW, window.end());
                                 filtered.definePixel(i, j, window[indexW]);
-                                window.clear();
                             }
                             else {
-                                std::vector<double> window(Nw * Nw, 0.0);
                                 int l0 = Ny - 1 - j - 2 * windowRadius;
                                 for (int k = 0; k < Nw; k++) {
                                     for (int l = 0; l < Nw; l++) {
                                         window[k * Nw + l] = data.value(i + k + k0, j + l + l0);
                                     }
                                 }
-                                std::sort(window.begin(), window.end());
+                                std::nth_element(window.begin(), window.begin() + indexW, window.end());
                                 filtered.definePixel(i, j, window[indexW]);
-                                window.clear();
                             }
                         }
                         else {
-                            std::vector<double> window(Nw * Nw, 0.0);
                             for (int k = 0; k < Nw; k++) {
                                 for (int l = 0; l < Nw; l++) {
                                     window[k * Nw + l] = data.value(i + k + k0, l);
                                 }
                             }
-                            std::sort(window.begin(), window.end());
+                            std::nth_element(window.begin(), window.begin() + indexW, window.end());
                             filtered.definePixel(i, j, window[indexW]);
-                            window.clear();
                         }
 
                     }
@@ -811,39 +801,33 @@ void medianFilter(imageBW& data, int windowRadius) {
                 for (int j = 0; j < Ny; j++) {
                     if (j >= windowRadius) {
                         if (j < Ny - windowRadius) {
-                            std::vector<double> window(Nw * Nw, 0.0);
                             for (int k = 0; k < Nw; k++) {
                                 for (int l = 0; l < Nw; l++) {
                                     window[k * Nw + l] = data.value(k, j + l - windowRadius);
                                 }
                             }
-                            std::sort(window.begin(), window.end());
+                            std::nth_element(window.begin(), window.begin() + indexW, window.end());
                             filtered.definePixel(i, j, window[indexW]);
-                            window.clear();
                         }
                         else {
-                            std::vector<double> window(Nw * Nw, 0.0);
                             int l0 = Ny - 1 - j - 2 * windowRadius;
                             for (int k = 0; k < Nw; k++) {
                                 for (int l = 0; l < Nw; l++) {
                                     window[k * Nw + l] = data.value(k, j + l + l0);
                                 }
                             }
-                            std::sort(window.begin(), window.end());
+                            std::nth_element(window.begin(), window.begin() + indexW, window.end());
                             filtered.definePixel(i, j, window[indexW]);
-                            window.clear();
                         }
                     }
                     else {
-                        std::vector<double> window(Nw * Nw, 0.0);
                         for (int k = 0; k < Nw; k++) {
                             for (int l = 0; l < Nw; l++) {
                                 window[k * Nw + l] = data.value(k, l);
                             }
                         }
-                        std::sort(window.begin(), window.end());
+                        std::nth_element(window.begin(), window.begin() + indexW, window.end());
                         filtered.definePixel(i, j, window[indexW]);
-                        window.clear();
                     }
 
                 }
@@ -853,6 +837,7 @@ void medianFilter(imageBW& data, int windowRadius) {
     data.destroy();
     filtered.copy(data);
     filtered.destroy();
+    window.clear();
 }
 
 void removeOutlier(imageBW& data, double sigmaOrder) {
