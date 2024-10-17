@@ -15,7 +15,7 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	imageBW imSmooth;
 	image.copy(imSmooth);
 	removeOutlier(imSmooth, 4.0);
-	medianFilter(imSmooth, 12);
+	medianFilter(imSmooth, 4);
 	int Nx = imSmooth.sizeX();
 	int Ny = imSmooth.sizeY();
 	peak.resize(2, 0);
@@ -454,7 +454,7 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
 	getImage(filepath, imBuffer);
 	perspectiveTransform(imBuffer, H, viewRes, output);
 	removeOutlier(output, 4.0);
-	medianFilter(output, 2.0);
+	medianFilter(output, 2);
 	imBuffer.destroy();
 
 }
