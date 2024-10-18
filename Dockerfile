@@ -1,12 +1,11 @@
 # syntax=docker/dockerfile:1
 
 # ## Start with python3.9 on Debian base
-FROM python:3.9-slim-bookworm as base
+FROM debian:bookworm-slim as base
 
 # Install libopencv-dev and numpy in the base, as it is needed in the build and 
 # final images
 RUN apt update
-RUN pip install numpy matplotlib
 
 # ## Create a stage for building/compiling the application.
 FROM base as build
