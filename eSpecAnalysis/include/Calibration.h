@@ -3,7 +3,6 @@
 #ifndef __Calibration_h__
 #define __Calibration_h__
 
-#include "matplotlibcpp.h"
 #include "NumericalMethods.h"
 
 
