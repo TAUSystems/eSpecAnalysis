@@ -530,7 +530,6 @@ void pointingMode(std::string filepath_eScreenA, std::string filepath_eScreenB, 
 		}
 	}
 	
-	plt::close();
 	imA.destroy();
 	imB.destroy(); 
 	imP.destroy();

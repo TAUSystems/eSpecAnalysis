@@ -186,10 +186,6 @@ void findRuler(int& mode, int& screen, imageBW& image, std::vector<double>& thre
     lineOut(1, 1.0, imCrop, 1, line);
     medianFilter(line, 1);
     Contrast(threshold[0], line);
-    if (mode == 1) {
-        plt::figure;
-        plt::title("Horizontal Threshold");
-    }
     edgeFind1D(mode, threshold[1], line);
 
 
@@ -362,10 +358,6 @@ void findRuler(int& mode, int& screen, imageBW& image, std::vector<double>& thre
     lineOut(1, 1.0, imCrop, 0, line);
     medianFilter(line, 1);
     Contrast(threshold[2], line);
-    if (mode == 1) {
-        plt::figure;
-        plt::title("Vertical Threshold");
-    }
     edgeFind1D(mode, threshold[3], line);
 
 
@@ -794,143 +786,6 @@ void screenCal(int mode, int& screen, spectrometer& eSpec, screenCalibration& ca
     perspectiveTransform(image, transformMatH, viewRes, imTransform);
     findRuler(mode, screen, imTransform, viewThreshold, viewQuad, viewRes, rulerX, rulerY);
 
-    if (mode == 1) {
-        imageBW imPlot;
-        std::vector<int> bounds;
-        bounds.resize(4, 0);
-        if (screen == 0) {
-            bounds[0] = (viewQuad[0].x + viewQuad[2].x - viewRes[0]) / 2;
-            bounds[1] = (viewQuad[0].x + viewQuad[2].x + viewRes[0]) / 2;
-            bounds[2] = (viewQuad[1].y + viewQuad[1].y - viewRes[1]) / 2;
-            bounds[3] = (viewQuad[1].y + viewQuad[1].y + viewRes[1]) / 2;
-
-            image.crop(bounds, imPlot);
-
-            size_t resV = 720;
-            double ratio = 2.0 * (double)imPlot.sizeX() / (double)imPlot.sizeY();
-            ratio = ratio * (resV + resV / 100.0);
-            size_t resH = (size_t)round(ratio);
-
-            std::vector<double> plotX, plotY;
-            plotX.resize(5, 0.0);
-            plotY.resize(5, 0.0);
-
-            plt::figure_size(resH, resV);
-            plt::subplot(1, 2, 1);
-
-            plotX[0] = viewQuad[0].x - bounds[0];
-            plotX[1] = viewQuad[1].x - bounds[0];
-            plotX[2] = viewQuad[2].x - bounds[0];
-            plotX[3] = viewQuad[3].x - bounds[0];
-            plotX[4] = viewQuad[0].x - bounds[0];
-            plotY[0] = image.sizeY() - 1 - viewQuad[0].y - bounds[2];
-            plotY[1] = image.sizeY() - 1 - viewQuad[1].y - bounds[2];
-            plotY[2] = image.sizeY() - 1 - viewQuad[2].y - bounds[2];
-            plotY[3] = image.sizeY() - 1 - viewQuad[3].y - bounds[2];
-            plotY[4] = image.sizeY() - 1 - viewQuad[0].y - bounds[2];
-
-            pltimshow(imPlot, 0, "");
-            plt::plot(plotX, plotY, { {"color","w"} });
-            plt::axis("off");
-
-            int Nx = (int)rulerX.size();
-            int Ny = (int)rulerY.size();
-            plotX.resize(2, 0.0);
-            plotY.resize(2, 0.0);
-            plt::subplot(1, 2, 2);
-            pltimshow(imTransform, 0, "");
-            for (int i = 0; i < Nx; i++) {
-                //if (i % 10 == 2) {
-                plotX[0] = rulerX[i];
-                plotX[1] = plotX[0];
-                plotY[0] = viewQuad[5].y - 10;
-                plotY[1] = viewQuad[5].y + 10;
-                plt::plot(plotX, plotY, { {"color","w"} });
-                //}
-            }
-            for (int i = 0; i < Ny; i++) {
-                //if (i % 10 == 2) {
-                plotY[0] = rulerY[i];
-                plotY[1] = plotY[0];
-                plotX[0] = viewQuad[4].x - 10;
-                plotX[1] = viewQuad[4].x + 10;
-                plt::plot(plotX, plotY, { {"color","w"} });
-                //}
-            }
-            plt::axis("off");
-            plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
-            plt::show();
-            plotX.clear();
-            plotY.clear();            
-        }
-        else {
-            bounds[0] = (int)std::max(std::min(std::min(viewQuad[0].x, viewQuad[1].x), std::min(viewQuad[2].x, viewQuad[3].x)) - 100, 0.0);
-            bounds[1] = (int)std::min(std::max(std::max(viewQuad[0].x, viewQuad[1].x), std::max(viewQuad[2].x, viewQuad[3].x)) + 300, (double)(image.sizeX() - 1));
-            bounds[2] = (int)std::max(std::min(std::min(viewQuad[0].y, viewQuad[1].y), std::min(viewQuad[2].y, viewQuad[3].y)) - 100, 0.0);
-            bounds[3] = (int)std::min(std::max(std::max(viewQuad[0].y, viewQuad[1].y), std::max(viewQuad[2].y, viewQuad[3].y)) + 100, (double)(image.sizeY() - 1));
-
-            image.crop(bounds, imPlot);
-
-            size_t resV = 720;
-            double ratio = 0.5 * (double)imPlot.sizeX() / (double)imPlot.sizeY();
-            ratio = ratio * (resV + resV / 100.0);
-            size_t resH = (size_t)round(ratio);
-
-            std::vector<double> plotX, plotY;
-            plotX.resize(5, 0.0);
-            plotY.resize(5, 0.0);
-
-            plt::figure_size(resH, resV);
-            plt::subplot(2, 1, 1);
-
-            plotX[0] = viewQuad[0].x - bounds[0];
-            plotX[1] = viewQuad[1].x - bounds[0];
-            plotX[2] = viewQuad[2].x - bounds[0];
-            plotX[3] = viewQuad[3].x - bounds[0];
-            plotX[4] = viewQuad[0].x - bounds[0];
-            plotY[0] = image.sizeY() - 1 - viewQuad[0].y - bounds[2];
-            plotY[1] = image.sizeY() - 1 - viewQuad[1].y - bounds[2];
-            plotY[2] = image.sizeY() - 1 - viewQuad[2].y - bounds[2];
-            plotY[3] = image.sizeY() - 1 - viewQuad[3].y - bounds[2];
-            plotY[4] = image.sizeY() - 1 - viewQuad[0].y - bounds[2];
-
-            pltimshow(imPlot, 0, "");
-            plt::plot(plotX, plotY, { {"color","w"} });
-            plt::axis("off");
-
-            int Nx = (int)rulerX.size();
-            int Ny = (int)rulerY.size();
-            plotX.resize(2, 0.0);
-            plotY.resize(2, 0.0);
-            plt::subplot(2, 1, 2);
-            pltimshow(imTransform, 0, "");
-            for (int i = 0; i < Nx; i++) {
-                //if (i % 10 == 2) {
-                plotX[0] = rulerX[i];
-                plotX[1] = plotX[0];
-                plotY[0] = viewQuad[5].y - 10;
-                plotY[1] = viewQuad[5].y + 10;
-                plt::plot(plotX, plotY, { {"color","w"} });
-                //}
-            }
-            for (int i = 0; i < Ny; i++) {
-                //if (i % 10 == 2) {
-                plotY[0] = rulerY[i];
-                plotY[1] = plotY[0];
-                plotX[0] = viewQuad[4].x - 10;
-                plotX[1] = viewQuad[4].x + 10;
-                plt::plot(plotX, plotY, { {"color","w"} });
-                //}
-            }
-            plt::axis("off");
-            plt::subplots_adjust({ {"left",0.05},{"right",0.95},{"top", 0.95},{"bottom",0.04}, {"wspace", 0.0}, {"hspace",0.0} });
-            plt::show();
-            plotX.clear();
-            plotY.clear();
-        }
-        bounds.clear();
-        imPlot.destroy();
-    }
     viewQuad.clear();
     viewRes.clear();
     viewThreshold.clear();
