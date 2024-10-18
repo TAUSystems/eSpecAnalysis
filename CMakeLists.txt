@@ -14,18 +14,10 @@ project ("eSpecAnalysis")
 
 set(OpenCV_STATIC ON)
 find_package (OpenCV REQUIRED core calib3d highgui imgproc features2d)
-find_package (PythonLibs REQUIRED)
 find_package (OpenMP REQUIRED)
-#find_package (Python3 REQUIRED COMPONENTS Interpreter NumPy)
 
 include_directories(${OpenMP_LIBRARY_DIR})
 include_directories (${OpenCV_INCLUDE_DIR})
-include_directories (${Python_INCLUDE_DIRS})
-
-include_directories ("/usr/local/include/python3.11")
-#include_directories ("/usr/include/python3.10")
-include_directories ("/usr/local/lib/python3.11/site-packages/numpy/core/include")
-#include_directories ("/usr/local/lib/python3.10/dist-packages/numpy/core/include")
 
 # The matplotlibcpp.h file from the matplotlib-cpp repository should be put into 
 # <project_root>/eSpecAnalysis/include
