@@ -230,27 +230,6 @@ void findSignalPeak(imageBW& image, std::vector<int>& peak, double& peakValue) {
 	
 }
 
-void findPointing(spectrometer& eSpec, imageBW& image, std::vector<double>& rulerX, std::vector<double>& rulerY, std::vector<double>& pointing) {
-	std::vector<int> peak;
-	double peakValue;
-	findSignalPeak(image, peak, peakValue);
-
-	pointing.resize(2, 0.0);
-
-	double x, y, z, phi, theta;
-	phi = eSpec.phi(0);
-	theta = eSpec.theta(0);
-	
-	
-	z = eSpec.z(0) + rulerX[peak[0]] * std::cos(phi) + rulerY[peak[1]] * std::sin(theta);
-	x = eSpec.x(0) + rulerX[peak[0]] * std::sin(phi);
-	y = eSpec.y(0) + rulerY[peak[1]] *std::cos(theta);
-
-	pointing[0] = std::atan2(z, x);
-	pointing[1] = std::atan2(z, y);
-	peak.clear();
-}
-
 
 /**
  * @brief Convert angle axes to mrad
@@ -345,7 +324,6 @@ void getPointing(imageBW& pointingImage,
 	double peakValue, peakValueB, totalValue, acceptValue;
 	pointingImage.crop(acceptanceBound, imBuffer);
 	findSignalPeak(imBuffer, peakBound, peakValueB);
-	findSignalPeak(pointingImage, peak, peakValue);
 	// put peakBound back into the whole image coordinates
 	peakBound[0] = peakBound[0] + acceptanceBound[0];
 	peakBound[1] = peakBound[1] + acceptanceBound[2];
