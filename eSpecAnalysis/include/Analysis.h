@@ -417,8 +417,6 @@ void loadFile(std::string& filepath, cv::Mat& H, std::vector<double>& viewRes, i
 
 	getImage(filepath, imBuffer);
 	perspectiveTransform(imBuffer, H, viewRes, output);
-	removeOutlier(output, 4.0);
-	medianFilter(output, 2);
 	imBuffer.destroy();
 
 }
