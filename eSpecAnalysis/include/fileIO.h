@@ -181,7 +181,7 @@ public:
             NsY = (int)bounds[2];
         }
 
-        cv::Rect ROI(NsY, NsX, NfY, NfX);
+        cv::Rect ROI(NsX, NsY, NfX, NfY);
         cv::Mat buffer = data(ROI);
 
         output.populateImage(buffer);
@@ -215,7 +215,7 @@ public:
             NsY = (int)bounds[2];
         }
         
-        cv::Rect ROI(NsY, NsX, NfY, NfX);
+        cv::Rect ROI(NsX, NsY, NfX, NfY);
         cv::Mat buffer = data(ROI);
 
         output.populateImage(buffer);
@@ -225,7 +225,6 @@ public:
         int Nx, Ny;
         Nx = size[0];
         Ny = size[1];
-        output.resize(Nx, Ny);
         
         output.populateImage(data);
     }
