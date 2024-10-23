@@ -56,8 +56,9 @@ class imageBW {
 public:
     imageBW() {
         data = cv::Mat::zeros(1, 1, CV_64F);
-        size = (size_t*)malloc(sizeof(size_t) * 1);
+        size = (size_t*)malloc(2 * sizeof(size_t));
         size[0] = 1;
+        size[1] = 1;
     }
 
     void resize(int Nx, int Ny) {
@@ -113,10 +114,11 @@ public:
     }
 
     void populateImage(cv::Mat& image) {
-        size[0] = image.cols;
-        size[1] = image.rows;
-
         data = image.clone();
+
+        size = (size_t*)realloc(size, 2 * sizeof(size_t));
+        size[0] = data.cols;
+        size[1] = data.rows;
     }
 
     void definePixel(int indexX, int indexY, double value) {
