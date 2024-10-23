@@ -454,24 +454,32 @@ void getImage(std::string file, imageBW& output) {
 
     if (buffer.type() == 2) {
         bitDepth = 16;
-        cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
+        cv::Mat bufferflip, buffer64f;
         buffer.convertTo(buffer64f, CV_64F);
         buffer64f = buffer64f / pow(2, bitDepth);
+        cv::flip(buffer64f, bufferflip, 0);
 
-        output.populateImage(buffer64f);
+        output.populateImage(bufferflip);
+        bufferflip.release();
         buffer64f.release();
     }
     else if (buffer.type() == 6) {
         bitDepth = 64;
-        output.populateImage(buffer);
+        cv::Mat bufferflip;
+        cv::flip(buffer, bufferflip, 0);
+
+        output.populateImage(bufferflip);
+        bufferflip.release();
     }
-    else{
+    else {
         bitDepth = 8;
-        cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
+        cv::Mat bufferflip, buffer64f;
         buffer.convertTo(buffer64f, CV_64F);
         buffer64f = buffer64f / pow(2, bitDepth);
+        cv::flip(buffer64f, bufferflip, 0);
 
-        output.populateImage(buffer64f);
+        output.populateImage(bufferflip);
+        bufferflip.release();
         buffer64f.release();
     }
     buffer.release();
@@ -487,24 +495,32 @@ void getImage(cv::Mat& input, imageBW& output) {
 
     if (input.type() == 2) {
         bitDepth = 16;
-        cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
+        cv::Mat bufferflip, buffer64f;
         input.convertTo(buffer64f, CV_64F);
         buffer64f = buffer64f / pow(2, bitDepth);
+        cv::flip(buffer64f, bufferflip, 0);
 
-        output.populateImage(buffer64f);
+        output.populateImage(bufferflip);
+        bufferflip.release();
         buffer64f.release();
     }
     else if (input.type() == 6) {
         bitDepth = 64;
-        output.populateImage(input);
+        cv::Mat bufferflip;
+        cv::flip(input, bufferflip, 0);
+
+        output.populateImage(bufferflip);
+        bufferflip.release();
     }
     else {
         bitDepth = 8;
-        cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
+        cv::Mat bufferflip, buffer64f;
         input.convertTo(buffer64f, CV_64F);
         buffer64f = buffer64f / pow(2, bitDepth);
+        cv::flip(buffer64f, bufferflip, 0);
 
-        output.populateImage(buffer64f);
+        output.populateImage(bufferflip);
+        bufferflip.release();
         buffer64f.release();
     }
 
