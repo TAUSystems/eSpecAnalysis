@@ -51,61 +51,37 @@ void clearCMD() {
 }
 
 class imageBW {
-    double** data;
+    cv::Mat data;
     size_t* size;
 public:
     imageBW() {
-        data = (double**)malloc(0 * sizeof(double*));
-        //data[0] = (double*)malloc(sizeof(double));
-        //data[0][0] = 0.0;
-        size = (size_t*)malloc(sizeof(size_t) * 0);
-        //size[0] = 0;
-        //size[1] = 0;
+        data = cv::Mat::zeros(1, 1, CV_64F);
+        size = (size_t*)malloc(sizeof(size_t) * 1);
+        size[0] = 1;
     }
 
     void resize(int Nx, int Ny) {
         size = (size_t*)realloc(size, 2 * sizeof(size_t));
         size[0] = (size_t)Nx;
         size[1] = (size_t)Ny;
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
 
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        data = cv::Mat::zeros(size[1],size[0],CV_64F);
     }
 
     void resize(size_t Nx, size_t Ny) {
         size = (size_t*)realloc(size, 2 * sizeof(size_t));
         size[0] = Nx;
         size[1] = Ny;
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
 
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        data = cv::Mat::zeros(size[1], size[0], CV_64F);
     }
 
     void resize(std::vector<size_t> winSize) {
         size = (size_t*)realloc(size, 2 * sizeof(size_t));
         size[0] = winSize[0];
         size[1] = winSize[1];
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
-
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        
+        data = cv::Mat::zeros(size[1], size[0], CV_64F);
     }
 
     void resize(cv::Size imgSize) {
@@ -113,15 +89,7 @@ public:
         size[0] = imgSize.width;
         size[1] = imgSize.height;
 
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
-
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        data = cv::Mat::zeros(size[1], size[0], CV_64F);
     }
 
     void resize(std::vector<cv::Point2d> bounds) {
@@ -134,49 +102,45 @@ public:
         size[0] = (size_t)(NfX - NsX);
         size[1] = (size_t)(NfY - NsY);
         
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
-
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        data = cv::Mat::zeros(size[1], size[0], CV_64F);
     }
 
     void destroy() {
-        #pragma omp parallel for
-        for (int i = 0; i < (int)size[0]; i++) {
-            data[i] = (double*)realloc(data[i], 0 * sizeof(double));
-            free(data[i]);
-        }
-        data = (double**)realloc(data, 0 * sizeof(double*));
         size = (size_t*)realloc(size, 0 * sizeof(size_t));
-
-        free(data);
         free(size);
+        data.deallocate();
         //_heapmin();
     }
 
+    void populateImage(cv::Mat& image) {
+        size[0] = image.cols;
+        size[1] = image.rows;
+
+        data = image.clone();
+    }
+
     void definePixel(int indexX, int indexY, double value) {
-        data[indexX][indexY] = value;
+        data.at<double>(indexY, indexX) = value;
     }
 
     void definePixel(size_t indexX, size_t indexY, double value) {
-        data[indexX][indexY] = value;
+        data.at<double>(indexY, indexX) = value;
     }
 
     void definePixel(int indexX, size_t indexY, double value) {
-        data[indexX][indexY] = value;
+        data.at<double>(indexY, indexX) = value;
     }
 
     void definePixel(size_t indexX, int indexY, double value) {
-        data[indexX][indexY] = value;
+        data.at<double>(indexY, indexX) = value;
     }
 
     double value(int indexX, int indexY) {
-        return data[indexX][indexY];
+        return data.at<double>(indexY, indexX);
+    }
+
+    void getMatrix(cv::Mat& output) {
+        output = data.clone();
     }
 
     size_t sizeX() {
@@ -214,18 +178,11 @@ public:
         else {
             NsY = (int)bounds[2];
         }
-        int Nx = NfX - NsX;
-        int Ny = NfY - NsY;
-        output.resize(Nx, Ny);
 
-        #pragma omp parallel for
-            for (int i = 0; i < Nx; i++) {
-                for (int j = 0; j < Ny; j++) {
-                    int Ni = (int)(NsX + i);
-                    int Nj = (int)(NsY + j);
-                    output.definePixel(i, j, data[Ni][Nj]);
-                }
-            }
+        cv::Rect ROI(NsY, NsX, NfY, NfX);
+        cv::Mat buffer = data(ROI);
+
+        output.populateImage(buffer);
     }
 
     void crop(std::vector<int> bounds, imageBW& output) {
@@ -255,32 +212,20 @@ public:
         else {
             NsY = (int)bounds[2];
         }
-        int Nx = NfX - NsX;
-        int Ny = NfY - NsY;
-        output.resize(Nx, Ny);
-
         
-        #pragma omp parallel for
-            for (int i = 0; i < Nx; i++) {
-                for (int j = 0; j < Ny; j++) {
-                    int Ni = (int)(NsX + i);
-                    int Nj = (int)(NsY + j);
-                    output.definePixel(i, j, data[Ni][Nj]);
-                }
-            }
+        cv::Rect ROI(NsY, NsX, NfY, NfX);
+        cv::Mat buffer = data(ROI);
+
+        output.populateImage(buffer);
     }
-    
+
     void copy(imageBW& output) {
         int Nx, Ny;
         Nx = size[0];
         Ny = size[1];
         output.resize(Nx, Ny);
-        #pragma omp parallel for
-        for (int i = 0; i < Nx; i++) {
-            for (int j = 0; j < Ny; j++) {
-                output.definePixel(i, j, data[i][j]);
-            }
-        }
+        
+        output.populateImage(data);
     }
 };
 
@@ -510,44 +455,22 @@ void getImage(std::string file, imageBW& output) {
         bitDepth = 16;
         cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
         buffer.convertTo(buffer64f, CV_64F);
+        buffer64f = buffer64f / pow(2, bitDepth);
 
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        output.populateImage(buffer64f);
         buffer64f.release();
     }
     else if (buffer.type() == 6) {
         bitDepth = 64;
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer.at<double>(j, i);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        output.populateImage(buffer);
     }
     else{
         bitDepth = 8;
         cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
         buffer.convertTo(buffer64f, CV_64F);
+        buffer64f = buffer64f / pow(2, bitDepth);
 
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        output.populateImage(buffer64f);
         buffer64f.release();
     }
     buffer.release();
@@ -565,45 +488,22 @@ void getImage(cv::Mat& input, imageBW& output) {
         bitDepth = 16;
         cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
         input.convertTo(buffer64f, CV_64F);
+        buffer64f = buffer64f / pow(2, bitDepth);
 
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        output.populateImage(buffer64f);
         buffer64f.release();
     }
     else if (input.type() == 6) {
         bitDepth = 64;
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = input.at<double>(j, i);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        output.populateImage(input);
     }
     else {
         bitDepth = 8;
         cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
         input.convertTo(buffer64f, CV_64F);
+        buffer64f = buffer64f / pow(2, bitDepth);
 
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
-
+        output.populateImage(buffer64f);
         buffer64f.release();
     }
 
@@ -612,16 +512,9 @@ void getImage(cv::Mat& input, imageBW& output) {
 void imgshow(imageBW& image) {
     int Nx = (int)image.sizeX();
     int Ny = (int)image.sizeY();
-    cv::Mat buffer(Ny, Nx, CV_64F);
+    cv::Mat buffer;
 
-    #pragma omp parallel for
-        for (int i = 0; i < Nx; i++) {
-            for (int j = 0; j < Ny; j++) {
-                double pxBuffer = image.value(i, j);
-                int jinv = Ny - j;
-                buffer.at<CvType<CV_64F>::type_t>(jinv, i) = pxBuffer;
-            }
-        }
+    image.getMatrix(buffer);
 
     cv::namedWindow(" ", cv::WINDOW_AUTOSIZE);
     cv::imshow(" ", buffer);
@@ -660,17 +553,12 @@ void resizeImage(double& scaling, std::string& inputFile, std::string& outputFil
  */
 void saveCroppedTransformedImage(imageBW& image, std::vector<double>& xAxis, std::vector<double>& yAxis, std::string filepath) {
 	std::vector<cv::Mat> tiff_pages;
-    cv::Mat imageMat = cv::Mat::zeros(image.sizeY(), image.sizeX(), CV_64F);
+    cv::Mat imageMat;
     cv::Mat xAxisMat = cv::Mat::zeros(1, (int)xAxis.size(), CV_64F);
     cv::Mat yAxisMat = cv::Mat::zeros((int)yAxis.size(), 1, CV_64F);
 
-    #pragma omp parallel for
-        for (int i = 0; i < image.sizeX(); i++) {
-            for (int j = 0; j < image.sizeY(); j++) {
-                imageMat.at<double>(j, i) = image.value(i, j);
-            }
-        }
-
+    image.getMatrix(imageMat);
+    
     #pragma omp parallel for
         for (int i = 0; i < (int)xAxis.size(); i++) {
             xAxisMat.at<double>(0, i) = xAxis[i];
