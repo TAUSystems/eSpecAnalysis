@@ -716,6 +716,57 @@ void medianFilter(imageBW& data, int windowRadius) {
     int Ny = (int)data.sizeY();
     int Nw = 2 * windowRadius + 1;
 
+    cv::Mat bufferInput, bufferOutput;
+    data.getMatrix(bufferInput);
+    bufferOutput = bufferInput.clone();
+    //#pragma omp parallel for
+    for (int i = 0; i < Nx; i++) {
+        cv::Rect roi;
+        roi.width = Nw;
+        roi.height = Nw;
+        if (i < windowRadius) {
+            roi.x = 0;
+        }
+        else {
+            if (i >= Nx - windowRadius) {
+                roi.x = Nx - Nw - 1;
+            }
+            else {
+                roi.x = i - windowRadius;
+            }
+        }
+        for (int j = 0; j < Ny; j++) {
+            ;
+            if (j < windowRadius) {
+                roi.y = 0;
+            }
+            else {
+                if (j >= Ny - windowRadius) {
+                    roi.y = Ny - Nw - 1;
+                }
+                else {
+                    roi.y = j - windowRadius;
+                }
+            }
+            cv::Mat submat = bufferInput(roi);
+            submat = submat.clone();
+            cv::Mat flatMat = submat.reshape(1, 1);
+            std::vector<double> sortvec(flatMat.begin<double>(), flatMat.end<double>());
+
+
+            sort(sortvec.begin(), sortvec.end());
+            int center = (int)round((sortvec.size() - 1) / 2);
+            bufferOutput.at<double>(j, i) = sortvec[center];
+        }
+    }
+    data.populateImage(bufferOutput);
+}
+/*
+void medianFilter(imageBW& data, int windowRadius) {
+    int Nx = (int)data.sizeX();
+    int Ny = (int)data.sizeY();
+    int Nw = 2 * windowRadius + 1;
+
     
     imageBW filtered;
     filtered.resize(Nx, Ny);
@@ -839,6 +890,7 @@ void medianFilter(imageBW& data, int windowRadius) {
     filtered.destroy();
     window.clear();
 }
+*/
 
 void removeOutlier(imageBW& data, double sigmaOrder) {
     int Nx = (int)data.sizeX();
