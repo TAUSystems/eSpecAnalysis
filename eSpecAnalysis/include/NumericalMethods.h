@@ -670,47 +670,96 @@ void medianFilter(std::vector<double>& data, int windowRadius) {
 
     std::vector<double> filtered;
     filtered.resize(N, 0.0);
-    #pragma omp parallel for
-        for (int i = 0; i < N; i++) {
-            if (i >= windowRadius) {
-                if (i < N - windowRadius) {
-                    std::vector<double> window;
-                    window.resize(2 * windowRadius + 1, 0.0);
-                    for (int j = 0; j < 2 * windowRadius + 1; j++) {
-                        window[j] = data[i + j - windowRadius];
-                    }
-                    std::sort(window.begin(), window.end());
-                    filtered[i] = window[windowRadius + 1];
-                    window.clear();
+    //#pragma omp parallel for
+    for (int i = 0; i < N; i++) {
+        if (i >= windowRadius) {
+            if (i < N - windowRadius) {
+                std::vector<double> window;
+                window.resize(2 * windowRadius + 1, 0.0);
+                for (int j = 0; j < 2 * windowRadius + 1; j++) {
+                    window[j] = data[i + j - windowRadius];
                 }
-                else {
-                    std::vector<double> window;
-                    window.resize(2 * windowRadius + 1, 0.0);
-                    int j0 = N - 1 - i - 2 * windowRadius;
-                    for (int j = 0; j < 2 * windowRadius + 1; j++) {
-                        window[j] = data[i + j + j0];
-                    }
-                    std::sort(window.begin(), window.end());
-                    filtered[i] = window[windowRadius + 1];
-                    window.clear();
-                }
+                std::nth_element(window.begin(), window.begin() + windowRadius + 1, window.end());
+                filtered[i] = window[windowRadius + 1];
+                window.clear();
             }
             else {
                 std::vector<double> window;
                 window.resize(2 * windowRadius + 1, 0.0);
+                int j0 = N - 1 - i - 2 * windowRadius;
                 for (int j = 0; j < 2 * windowRadius + 1; j++) {
-                    window[j] = data[j];
+                    window[j] = data[i + j + j0];
                 }
-                std::sort(window.begin(), window.end());
+                std::nth_element(window.begin(), window.begin() + windowRadius + 1, window.end());
                 filtered[i] = window[windowRadius + 1];
                 window.clear();
             }
         }
+        else {
+            std::vector<double> window;
+            window.resize(2 * windowRadius + 1, 0.0);
+            for (int j = 0; j < 2 * windowRadius + 1; j++) {
+                window[j] = data[j];
+            }
+            std::nth_element(window.begin(), window.begin() + windowRadius + 1, window.end());
+            filtered[i] = window[windowRadius + 1];
+            window.clear();
+        }
+    }
 
     data = filtered;
     filtered.clear();
 }
 
+void medianFilter(imageBW& data, int windowRadius) {
+    int Nx = (int)data.sizeX();
+    int Ny = (int)data.sizeY();
+    int Nw = 2 * windowRadius + 1;
+    int centerIndex = (int)((Nw * Nw - 1) / 2);
+
+    cv::Mat bufferInput, bufferOutput;
+    data.getMatrix(bufferInput);
+    bufferOutput = bufferInput.clone();
+    //#pragma omp parallel for
+    for (int i = 0; i < Nx; i++) {
+        cv::Rect roi;
+        roi.width = Nw;
+        roi.height = Nw;
+        if (i < windowRadius) {
+            roi.x = 0;
+        }
+        else {
+            if (i >= Nx - windowRadius) {
+                roi.x = Nx - Nw - 1;
+            }
+            else {
+                roi.x = i - windowRadius;
+            }
+        }
+        for (int j = 0; j < Ny; j++) {
+            ;
+            if (j < windowRadius) {
+                roi.y = 0;
+            }
+            else {
+                if (j >= Ny - windowRadius) {
+                    roi.y = Ny - Nw - 1;
+                }
+                else {
+                    roi.y = j - windowRadius;
+                }
+            }
+            cv::Mat submat = bufferInput(roi);
+            //submat has to be cloned for nth_element to work correctly. I believe this has to do with doing a submat making the data noncontinuous
+            submat = submat.clone();
+
+            std::nth_element(submat.begin<double>(), submat.begin<double>() + centerIndex, submat.end<double>());
+            bufferOutput.at<double>(j, i) = submat.at<double>(windowRadius, windowRadius);
+        }
+    }
+    data.populateImage(bufferOutput);
+}
+/*
 void medianFilter(imageBW& data, int windowRadius) {
     int Nx = (int)data.sizeX();
     int Ny = (int)data.sizeY();
