@@ -52,73 +52,44 @@ void clearCMD() {
 
 class imageBW {
     cv::Mat data;
-    size_t* size;
 public:
     imageBW() {
         data = cv::Mat::zeros(1, 1, CV_64F);
-        size = (size_t*)malloc(2 * sizeof(size_t));
-        size[0] = 1;
-        size[1] = 1;
     }
 
     void resize(int Nx, int Ny) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = (size_t)Nx;
-        size[1] = (size_t)Ny;
-
-        data = cv::Mat::zeros(size[1],size[0],CV_64F);
+        data = cv::Mat::zeros(Ny, Nx, CV_64F);
     }
 
     void resize(size_t Nx, size_t Ny) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = Nx;
-        size[1] = Ny;
-
-        data = cv::Mat::zeros(size[1], size[0], CV_64F);
+        data = cv::Mat::zeros(Ny, Nx, CV_64F);
     }
 
     void resize(std::vector<size_t> winSize) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = winSize[0];
-        size[1] = winSize[1];
-        
-        data = cv::Mat::zeros(size[1], size[0], CV_64F);
+        data = cv::Mat::zeros(winSize[1], winSize[0], CV_64F);
     }
 
     void resize(cv::Size imgSize) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = imgSize.width;
-        size[1] = imgSize.height;
-
-        data = cv::Mat::zeros(size[1], size[0], CV_64F);
+        data = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
     }
 
     void resize(std::vector<cv::Point2d> bounds) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        int NsX, NfX, NsY, NfY;
+        int NsX, NfX, NsY, NfY, Nx, Ny;
         NsX = std::min(std::min((int)bounds[0].x, (int)bounds[1].x), std::min((int)bounds[2].x, (int)bounds[3].x));
         NfX = std::max(std::max((int)bounds[0].x, (int)bounds[1].x), std::max((int)bounds[2].x, (int)bounds[3].x));
         NsY = std::min(std::min((int)bounds[0].y, (int)bounds[1].y), std::min((int)bounds[2].y, (int)bounds[3].y));
         NfY = std::max(std::max((int)bounds[0].y, (int)bounds[1].y), std::max((int)bounds[2].y, (int)bounds[3].y));
-        size[0] = (size_t)(NfX - NsX);
-        size[1] = (size_t)(NfY - NsY);
-        
-        data = cv::Mat::zeros(size[1], size[0], CV_64F);
+        Nx = NfX - NsX;
+        Ny = NfY - NsY;
+        data = cv::Mat::zeros(Ny, Nx, CV_64F);
     }
 
     void destroy() {
-        size = (size_t*)realloc(size, 0 * sizeof(size_t));
-        free(size);
         data.deallocate();
-        //_heapmin();
     }
 
     void populateImage(cv::Mat& image) {
         data = image.clone();
-
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = data.cols;
-        size[1] = data.rows;
     }
 
     void definePixel(int indexX, int indexY, double value) {
@@ -146,18 +117,18 @@ public:
     }
 
     size_t sizeX() {
-        return size[0];
+        return data.cols;
     }
 
     size_t sizeY() {
-        return size[1];
+        return data.rows;
     }
 
     void crop(std::vector<size_t> bounds, imageBW& output) {
         int NsX, NfX, NsY, NfY;
 
-        if (bounds[1] > size[0]) {
-            NfX = (int)size[0];
+        if (bounds[1] > data.cols) {
+            NfX = (int)data.cols;
         }
         else {
             NfX = (int)bounds[1];
@@ -168,8 +139,8 @@ public:
         else {
             NsX = (int)bounds[0];
         }
-        if (bounds[3] > size[1]) {
-            NfY = (int)size[0];
+        if (bounds[3] > data.rows) {
+            NfY = (int)data.rows;
         }
         else {
             NfY = (int)bounds[3];
@@ -190,8 +161,8 @@ public:
     void crop(std::vector<int> bounds, imageBW& output) {
         int NsX, NfX, NsY, NfY;
 
-        if (bounds[1] > size[0]) {
-            NfX = (int)size[0];
+        if (bounds[1] > data.cols) {
+            NfX = (int)data.cols;
         }
         else {
             NfX = (int)bounds[1];
@@ -202,8 +173,8 @@ public:
         else {
             NsX = (int)bounds[0];
         }
-        if (bounds[3] > size[1]) {
-            NfY = (int)size[0];
+        if (bounds[3] > data.rows) {
+            NfY = (int)data.rows;
         }
         else {
             NfY = (int)bounds[3];
@@ -214,18 +185,14 @@ public:
         else {
             NsY = (int)bounds[2];
         }
-        
-        cv::Rect ROI(NsX, NsY, NfX, NfY);
+
+        cv::Rect ROI(NsX, NsY, NfX - NsX, NfY - NsY);
         cv::Mat buffer = data(ROI);
 
         output.populateImage(buffer);
     }
 
     void copy(imageBW& output) {
-        int Nx, Ny;
-        Nx = size[0];
-        Ny = size[1];
-        
         output.populateImage(data);
     }
 };
