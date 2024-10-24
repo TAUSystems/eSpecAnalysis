@@ -214,8 +214,8 @@ public:
         else {
             NsY = (int)bounds[2];
         }
-        
-        cv::Rect ROI(NsX, NsY, NfX, NfY);
+
+        cv::Rect ROI(NsX, NsY, NfX - NsX, NfY - NsY);
         cv::Mat buffer = data(ROI);
 
         output.populateImage(buffer);
