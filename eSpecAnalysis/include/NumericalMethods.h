@@ -33,7 +33,7 @@ void simpsonInt(double& dx, std::vector<double>& y, double& output) {
 }
 
 //Finite Element Interpolation
-void FE1DInterp(std::vector<double> &x, std::vector<double> &y, double &xEval, double &output) {
+void FE1DInterp(std::vector<double>& x, std::vector<double>& y, double& xEval, double& output) {
     output = 0.0;
     int Lx = (int)x.size();
     int NxE = (int)floor((Lx - 2) / 2) + 1;
@@ -42,10 +42,10 @@ void FE1DInterp(std::vector<double> &x, std::vector<double> &y, double &xEval, d
 
     std::vector<double> psi;
     psi.resize(3, 0.0);
-    if (abs(2 * NxE - Lx) > pow(10.0, -3.0)) {
-        eleX = NxE;
+    if (abs(2 * NxE - Lx + 1) > pow(10.0, -3.0)) {
+        eleX = NxE - 1;
         if (x.front() < x.back()) {
-            for (int i = 0; i < NxE; i++) {
+            for (int i = 0; i < NxE - 1; i++) {
                 if (xEval <= x[2 * i + 2]) {
                     eleX = i;
                     break;
@@ -53,7 +53,7 @@ void FE1DInterp(std::vector<double> &x, std::vector<double> &y, double &xEval, d
             }
         }
         else {
-            for (int i = 0; i < NxE; i++) {
+            for (int i = 0; i < NxE - 1; i++) {
                 if (xEval >= x[2 * i + 2]) {
                     eleX = i;
                     break;
@@ -61,40 +61,53 @@ void FE1DInterp(std::vector<double> &x, std::vector<double> &y, double &xEval, d
             }
         }
 
-        if (eleX < NxE) {
+        if (eleX < NxE - 1) {
             mX0 = (2 * x[2 * eleX + 1] - (x[2 * eleX + 2] + x[2 * eleX])) / (x[2 * eleX + 2] - x[2 * eleX]);
             mX = (2 * xEval - (x[2 * eleX + 2] + x[2 * eleX])) / (x[2 * eleX + 2] - x[2 * eleX]);
 
             psi[0] = (mX - mX0) * (mX - 1.0) / (2 * (1 + mX0));
             psi[1] = (mX + 1.0) * (mX - 1.0) / ((mX0 + 1.0) * (mX0 - 1.0));
             psi[2] = (mX + 1.0) * (mX - mX0) / (2 * (1.0 - mX0));
+
+            output = y[2 * eleX] * psi[0] + y[2 * eleX + 1] * psi[1] + y[2 * eleX + 2] * psi[2];
         }
         else {
-            mX = (2 * xEval - (x[2 * eleX + 1] + x[2 * eleX])) / (x[2 * eleX + 1] - x[2 * eleX]);
+            mX0 = (2 * x[2 * eleX] - (x[2 * eleX + 1] + x[2 * eleX - 1])) / (x[2 * eleX + 1] - x[2 * eleX - 1]);
+            mX = (2 * xEval - (x[2 * eleX + 1] + x[2 * eleX - 1])) / (x[2 * eleX + 1] - x[2 * eleX - 1]);
 
-            psi[0] = -(mX - 1.0) / 2.0;
-            psi[1] = (mX + 1.0) / 2.0;
+            psi[0] = (mX - mX0) * (mX - 1.0) / (2 * (1 + mX0));
+            psi[1] = (mX + 1.0) * (mX - 1.0) / ((mX0 + 1.0) * (mX0 - 1.0));
+            psi[2] = (mX + 1.0) * (mX - mX0) / (2 * (1.0 - mX0));
+
+            output = y[2 * eleX - 1] * psi[0] + y[2 * eleX] * psi[1] + y[2 * eleX + 1] * psi[2];
         }
     }
     else {
         eleX = NxE - 1;
-        for (int i = 0; i < NxE; i++) {
-            if (abs(xEval - x[2 * (i + 1)]) <= abs(x[2 * (i + 1)] - x[2 * i])) {
-                eleX = i;
-                break;
+        if (x.front() < x.back()) {
+            for (int i = 0; i < NxE - 1; i++) {
+                if (xEval <= x[2 * i + 2]) {
+                    eleX = i;
+                    break;
+                }
             }
         }
+        else {
+            for (int i = 0; i < NxE - 1; i++) {
+                if (xEval >= x[2 * i + 2]) {
+                    eleX = i;
+                    break;
+                }
+            }
+        }
+
         mX0 = (2 * x[2 * eleX + 1] - (x[2 * eleX + 2] + x[2 * eleX])) / (x[2 * eleX + 2] - x[2 * eleX]);
         mX = (2 * xEval - (x[2 * eleX + 2] + x[2 * eleX])) / (x[2 * eleX + 2] - x[2 * eleX]);
 
         psi[0] = (mX - mX0) * (mX - 1.0) / (2 * (1.0 + mX0));
         psi[1] = (mX + 1.0) * (mX - 1.0) / ((mX0 + 1.0) * (mX0 - 1.0));
         psi[2] = (mX + 1.0) * (mX - mX0) / (2 * (1.0 - mX0));
-    }
-    if (eleX > NxE - 1) {
-        output = y[2 * eleX] * psi[0] + y[2 * eleX + 1] * psi[1];
-    }
-    else{
+
         output = y[2 * eleX] * psi[0] + y[2 * eleX + 1] * psi[1] + y[2 * eleX + 2] * psi[2];
     }
     psi.clear();
@@ -111,10 +124,10 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
 
     std::vector<double> psiX, psiY;
     psiX.resize(3, 0.0);
-    if (abs(2 * NxE - Lx) > pow(10.0, -3.0)) {
-        eleX = NxE;
+    if (abs(2 * NxE - Lx + 1) > pow(10.0, -3.0)) {
+        eleX = NxE - 1;
         if (xAxis.front() < xAxis.back()) {
-            for (int i = 0; i < NxE; i++) {
+            for (int i = 0; i < NxE - 1; i++) {
                 if (xEval <= xAxis[2 * i + 2]) {
                     eleX = i;
                     break;
@@ -122,7 +135,7 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
             }
         }
         else {
-            for (int i = 0; i < NxE; i++) {
+            for (int i = 0; i < NxE - 1; i++) {
                 if (xEval >= xAxis[2 * i + 2]) {
                     eleX = i;
                     break;
@@ -130,7 +143,7 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
             }
         }
 
-        if (eleX < NxE) {
+        if (eleX < NxE - 1) {
             mX0 = (2 * xAxis[2 * eleX + 1] - (xAxis[2 * eleX + 2] + xAxis[2 * eleX])) / (xAxis[2 * eleX + 2] - xAxis[2 * eleX]);
             mX = (2 * xEval - (xAxis[2 * eleX + 2] + xAxis[2 * eleX])) / (xAxis[2 * eleX + 2] - xAxis[2 * eleX]);
 
@@ -139,16 +152,18 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
             psiX[2] = (mX + 1.0) * (mX - mX0) / (2 * (1.0 - mX0));
         }
         else {
-            mX = (2 * xEval - (xAxis[2 * eleX + 1] + xAxis[2 * eleX])) / (xAxis[2 * eleX + 1] - xAxis[2 * eleX]);
+            mX0 = (2 * xAxis[2 * eleX] - (xAxis[2 * eleX + 1] + xAxis[2 * eleX - 1])) / (xAxis[2 * eleX + 1] - xAxis[2 * eleX - 1]);
+            mX = (2 * xEval - (xAxis[2 * eleX + 1] + xAxis[2 * eleX - 1])) / (xAxis[2 * eleX + 1] - xAxis[2 * eleX - 1]);
 
-            psiX[0] = -(mX - 1.0) / 2.0;
-            psiX[1] = (mX + 1.0) / 2.0;
+            psiX[0] = (mX - mX0) * (mX - 1.0) / (2 * (1 + mX0));
+            psiX[1] = (mX + 1.0) * (mX - 1.0) / ((mX0 + 1.0) * (mX0 - 1.0));
+            psiX[2] = (mX + 1.0) * (mX - mX0) / (2 * (1.0 - mX0));
         }
     }
     else {
         eleX = NxE - 1;
         if (xAxis.front() < xAxis.back()) {
-            for (int i = 0; i < NxE; i++) {
+            for (int i = 0; i < NxE - 1; i++) {
                 if (xEval <= xAxis[2 * i + 2]) {
                     eleX = i;
                     break;
@@ -156,7 +171,7 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
             }
         }
         else {
-            for (int i = 0; i < NxE; i++) {
+            for (int i = 0; i < NxE - 1; i++) {
                 if (xEval >= xAxis[2 * i + 2]) {
                     eleX = i;
                     break;
@@ -173,10 +188,10 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
     }
 
     psiY.resize(3, 0.0);
-    if (abs(2 * NyE - Ly) > pow(10.0, -3.0)) {
-        eleY = NyE;
+    if (abs(2 * NyE - Ly + 1) > pow(10.0, -3.0)) {
+        eleY = NyE - 1;
         if (yAxis.front() < yAxis.back()) {
-            for (int i = 0; i < NyE; i++) {
+            for (int i = 0; i < NyE - 1; i++) {
                 if (yEval <= yAxis[2 * i + 2]) {
                     eleY = i;
                     break;
@@ -184,7 +199,7 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
             }
         }
         else {
-            for (int i = 0; i < NyE; i++) {
+            for (int i = 0; i < NyE - 1; i++) {
                 if (yEval >= yAxis[2 * i + 2]) {
                     eleY = i;
                     break;
@@ -192,7 +207,7 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
             }
         }
 
-        if (eleY < NyE) {
+        if (eleY < NyE - 1) {
             mY0 = (2 * yAxis[2 * eleY + 1] - (yAxis[2 * eleY + 2] + yAxis[2 * eleY])) / (yAxis[2 * eleY + 2] - yAxis[2 * eleY]);
             mY = (2 * yEval - (yAxis[2 * eleY + 2] + yAxis[2 * eleY])) / (yAxis[2 * eleY + 2] - yAxis[2 * eleY]);
 
@@ -201,16 +216,18 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
             psiY[2] = (mY + 1.0) * (mY - mY0) / (2 * (1.0 - mY0));
         }
         else {
-            mY = (2 * yEval - (yAxis[2 * eleY + 1] + yAxis[2 * eleY])) / (yAxis[2 * eleY + 1] - yAxis[2 * eleY]);
+            mY0 = (2 * yAxis[2 * eleY] - (yAxis[2 * eleY + 1] + yAxis[2 * eleY - 1])) / (yAxis[2 * eleY + 1] - yAxis[2 * eleY - 1]);
+            mY = (2 * yEval - (yAxis[2 * eleY + 1] + yAxis[2 * eleY - 1])) / (yAxis[2 * eleY + 1] - yAxis[2 * eleY - 1]);
 
-            psiY[0] = -(mY - 1.0) / 2.0;
-            psiY[1] = (mY + 1.0) / 2.0;
+            psiY[0] = (mY - mY0) * (mY - 1.0) / (2 * (1 + mY0));
+            psiY[1] = (mY + 1.0) * (mY - 1.0) / ((mY0 + 1.0) * (mY0 - 1.0));
+            psiY[2] = (mY + 1.0) * (mY - mY0) / (2 * (1.0 - mY0));
         }
     }
     else {
         eleY = NyE - 1;
         if (yAxis.front() < yAxis.back()) {
-            for (int i = 0; i < NyE; i++) {
+            for (int i = 0; i < NyE - 1; i++) {
                 if (yEval <= yAxis[2 * i + 2]) {
                     eleY = i;
                     break;
@@ -218,7 +235,7 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
             }
         }
         else {
-            for (int i = 0; i < NyE; i++) {
+            for (int i = 0; i < NyE - 1; i++) {
                 if (yEval >= yAxis[2 * i + 2]) {
                     eleY = i;
                     break;
@@ -233,31 +250,107 @@ void FE2DInterp(std::vector<double>& xAxis, std::vector<double>& yAxis, std::vec
         psiY[1] = (mY + 1.0) * (mY - 1.0) / ((mY0 + 1.0) * (mY0 - 1.0));
         psiY[2] = (mY + 1.0) * (mY - mY0) / (2 * (1.0 - mY0));
     }
+    if (abs(2 * NxE - Lx + 1) > pow(10.0, -3.0)) {
+        if (abs(2 * NyE - Ly + 1) > pow(10.0, -3.0)) {
+            if (eleX < NxE - 1) {
+                if (eleY < NyE - 1) {
+                    output = surface[2 * eleX][2 * eleY] * psiX[0] * psiY[0] \
+                        + surface[2 * eleX + 1][2 * eleY] * psiX[1] * psiY[0] \
+                        + surface[2 * eleX + 2][2 * eleY] * psiX[2] * psiY[0] \
+                        + surface[2 * eleX][2 * eleY + 1] * psiX[0] * psiY[1] \
+                        + surface[2 * eleX + 1][2 * eleY + 1] * psiX[1] * psiY[1] \
+                        + surface[2 * eleX + 2][2 * eleY + 1] * psiX[2] * psiY[1] \
+                        + surface[2 * eleX][2 * eleY + 2] * psiX[0] * psiY[2] \
+                        + surface[2 * eleX + 1][2 * eleY + 2] * psiX[1] * psiY[2] \
+                        + surface[2 * eleX + 2][2 * eleY + 2] * psiX[2] * psiY[2];
+                }
+                else {
+                    output = surface[2 * eleX][2 * eleY - 1] * psiX[0] * psiY[0] \
+                        + surface[2 * eleX + 1][2 * eleY - 1] * psiX[1] * psiY[0] \
+                        + surface[2 * eleX + 2][2 * eleY - 1] * psiX[2] * psiY[0] \
+                        + surface[2 * eleX][2 * eleY] * psiX[0] * psiY[1] \
+                        + surface[2 * eleX + 1][2 * eleY] * psiX[1] * psiY[1] \
+                        + surface[2 * eleX + 2][2 * eleY] * psiX[2] * psiY[1] \
+                        + surface[2 * eleX][2 * eleY + 1] * psiX[0] * psiY[2] \
+                        + surface[2 * eleX + 1][2 * eleY + 1] * psiX[1] * psiY[2] \
+                        + surface[2 * eleX + 2][2 * eleY + 1] * psiX[2] * psiY[2];
+                }
 
-    if (eleX > NxE - 1) {
-        if (eleY > NyE - 1) {
-            output = surface[2 * eleX][2 * eleY] * psiX[0] * psiY[0] \
-                + surface[2 * eleX + 1][2 * eleY] * psiX[1] * psiY[0] \
-                + surface[2 * eleX][2 * eleY + 1] * psiX[0] * psiY[1] \
-                + surface[2 * eleX + 1][2 * eleY + 1] * psiX[1] * psiY[1];
+            }
+            else {
+                if (eleY < NyE - 1) {
+                    output = surface[2 * eleX - 1][2 * eleY] * psiX[0] * psiY[0] \
+                        + surface[2 * eleX][2 * eleY] * psiX[1] * psiY[0] \
+                        + surface[2 * eleX + 1][2 * eleY] * psiX[2] * psiY[0] \
+                        + surface[2 * eleX - 1][2 * eleY + 1] * psiX[0] * psiY[1] \
+                        + surface[2 * eleX][2 * eleY + 1] * psiX[1] * psiY[1] \
+                        + surface[2 * eleX + 1][2 * eleY + 1] * psiX[2] * psiY[1] \
+                        + surface[2 * eleX - 1][2 * eleY + 2] * psiX[0] * psiY[2] \
+                        + surface[2 * eleX][2 * eleY + 2] * psiX[1] * psiY[2] \
+                        + surface[2 * eleX + 1][2 * eleY + 2] * psiX[2] * psiY[2];
+                }
+                else {
+                    output = surface[2 * eleX - 1][2 * eleY - 1] * psiX[0] * psiY[0] \
+                        + surface[2 * eleX][2 * eleY - 1] * psiX[1] * psiY[0] \
+                        + surface[2 * eleX + 1][2 * eleY - 1] * psiX[2] * psiY[0] \
+                        + surface[2 * eleX - 1][2 * eleY] * psiX[0] * psiY[1] \
+                        + surface[2 * eleX][2 * eleY] * psiX[1] * psiY[1] \
+                        + surface[2 * eleX + 1][2 * eleY] * psiX[2] * psiY[1] \
+                        + surface[2 * eleX - 1][2 * eleY + 1] * psiX[0] * psiY[2] \
+                        + surface[2 * eleX][2 * eleY + 1] * psiX[1] * psiY[2] \
+                        + surface[2 * eleX + 1][2 * eleY + 1] * psiX[2] * psiY[2];
+                }
+            }
         }
         else {
-            output = surface[2 * eleX][2 * eleY] * psiX[0] * psiY[0] \
-                + surface[2 * eleX + 1][2 * eleY] * psiX[1] * psiY[0] \
-                + surface[2 * eleX][2 * eleY + 1] * psiX[0] * psiY[1] \
-                + surface[2 * eleX + 1][2 * eleY + 1] * psiX[1] * psiY[1] \
-                + surface[2 * eleX][2 * eleY + 2] * psiX[0] * psiY[2] \
-                + surface[2 * eleX + 1][2 * eleY + 2] * psiX[1] * psiY[2];
+            if (eleX < NxE - 1) {
+                output = surface[2 * eleX][2 * eleY] * psiX[0] * psiY[0] \
+                    + surface[2 * eleX + 1][2 * eleY] * psiX[1] * psiY[0] \
+                    + surface[2 * eleX + 2][2 * eleY] * psiX[2] * psiY[0] \
+                    + surface[2 * eleX][2 * eleY + 1] * psiX[0] * psiY[1] \
+                    + surface[2 * eleX + 1][2 * eleY + 1] * psiX[1] * psiY[1] \
+                    + surface[2 * eleX + 2][2 * eleY + 1] * psiX[2] * psiY[1] \
+                    + surface[2 * eleX][2 * eleY + 2] * psiX[0] * psiY[2] \
+                    + surface[2 * eleX + 1][2 * eleY + 2] * psiX[1] * psiY[2] \
+                    + surface[2 * eleX + 2][2 * eleY + 2] * psiX[2] * psiY[2];
+            }
+            else {
+                output = surface[2 * eleX - 1][2 * eleY] * psiX[0] * psiY[0] \
+                    + surface[2 * eleX][2 * eleY] * psiX[1] * psiY[0] \
+                    + surface[2 * eleX + 1][2 * eleY] * psiX[2] * psiY[0] \
+                    + surface[2 * eleX - 1][2 * eleY + 1] * psiX[0] * psiY[1] \
+                    + surface[2 * eleX][2 * eleY + 1] * psiX[1] * psiY[1] \
+                    + surface[2 * eleX + 1][2 * eleY + 1] * psiX[2] * psiY[1] \
+                    + surface[2 * eleX - 1][2 * eleY + 2] * psiX[0] * psiY[2] \
+                    + surface[2 * eleX][2 * eleY + 2] * psiX[1] * psiY[2] \
+                    + surface[2 * eleX + 1][2 * eleY + 2] * psiX[2] * psiY[2];
+            }
         }
     }
     else {
-        if (eleY > NyE - 1) {
-            output = surface[2 * eleX][2 * eleY] * psiX[0] * psiY[0] \
-                + surface[2 * eleX + 1][2 * eleY] * psiX[1] * psiY[0] \
-                + surface[2 * eleX + 2][2 * eleY] * psiX[2] * psiY[0] \
-                + surface[2 * eleX][2 * eleY + 1] * psiX[0] * psiY[1] \
-                + surface[2 * eleX + 1][2 * eleY + 1] * psiX[1] * psiY[1] \
-                + surface[2 * eleX + 2][2 * eleY + 1] * psiX[2] * psiY[1];
+        if (abs(2 * NyE - Ly + 1) > pow(10.0, -3.0)) {
+            if (eleY < NyE - 1) {
+                output = surface[2 * eleX][2 * eleY] * psiX[0] * psiY[0] \
+                    + surface[2 * eleX + 1][2 * eleY] * psiX[1] * psiY[0] \
+                    + surface[2 * eleX + 2][2 * eleY] * psiX[2] * psiY[0] \
+                    + surface[2 * eleX][2 * eleY + 1] * psiX[0] * psiY[1] \
+                    + surface[2 * eleX + 1][2 * eleY + 1] * psiX[1] * psiY[1] \
+                    + surface[2 * eleX + 2][2 * eleY + 1] * psiX[2] * psiY[1] \
+                    + surface[2 * eleX][2 * eleY + 2] * psiX[0] * psiY[2] \
+                    + surface[2 * eleX + 1][2 * eleY + 2] * psiX[1] * psiY[2] \
+                    + surface[2 * eleX + 2][2 * eleY + 2] * psiX[2] * psiY[2];
+            }
+            else {
+                output = surface[2 * eleX][2 * eleY - 1] * psiX[0] * psiY[0] \
+                    + surface[2 * eleX + 1][2 * eleY - 1] * psiX[1] * psiY[0] \
+                    + surface[2 * eleX + 2][2 * eleY - 1] * psiX[2] * psiY[0] \
+                    + surface[2 * eleX][2 * eleY] * psiX[0] * psiY[1] \
+                    + surface[2 * eleX + 1][2 * eleY] * psiX[1] * psiY[1] \
+                    + surface[2 * eleX + 2][2 * eleY] * psiX[2] * psiY[1] \
+                    + surface[2 * eleX][2 * eleY + 1] * psiX[0] * psiY[2] \
+                    + surface[2 * eleX + 1][2 * eleY + 1] * psiX[1] * psiY[2] \
+                    + surface[2 * eleX + 2][2 * eleY + 1] * psiX[2] * psiY[2];
+            }
         }
         else {
             output = surface[2 * eleX][2 * eleY] * psiX[0] * psiY[0] \
@@ -755,6 +848,57 @@ void medianFilter(imageBW& data, int windowRadius) {
 
             std::nth_element(submat.begin<double>(), submat.begin<double>() + centerIndex, submat.end<double>());
             bufferOutput.at<double>(j, i) = submat.at<double>(windowRadius, windowRadius);
+        }
+    }
+    data.populateImage(bufferOutput);
+}
+/*
+void medianFilter(imageBW& data, int windowRadius) {
+    int Nx = (int)data.sizeX();
+    int Ny = (int)data.sizeY();
+    int Nw = 2 * windowRadius + 1;
+
+    cv::Mat bufferInput, bufferOutput;
+    data.getMatrix(bufferInput);
+    bufferOutput = bufferInput.clone();
+    //#pragma omp parallel for
+    for (int i = 0; i < Nx; i++) {
+        cv::Rect roi;
+        roi.width = Nw;
+        roi.height = Nw;
+        if (i < windowRadius) {
+            roi.x = 0;
+        }
+        else {
+            if (i >= Nx - windowRadius) {
+                roi.x = Nx - Nw - 1;
+            }
+            else {
+                roi.x = i - windowRadius;
+            }
+        }
+        for (int j = 0; j < Ny; j++) {
+            ;
+            if (j < windowRadius) {
+                roi.y = 0;
+            }
+            else {
+                if (j >= Ny - windowRadius) {
+                    roi.y = Ny - Nw - 1;
+                }
+                else {
+                    roi.y = j - windowRadius;
+                }
+            }
+            cv::Mat submat = bufferInput(roi);
+            submat = submat.clone();
+            cv::Mat flatMat = submat.reshape(1, 1);
+            std::vector<double> sortvec(flatMat.begin<double>(), flatMat.end<double>());
+
+
+            sort(sortvec.begin(), sortvec.end());
+            int center = (int)round((sortvec.size() - 1) / 2);
+            bufferOutput.at<double>(j, i) = sortvec[center];
         }
     }
     data.populateImage(bufferOutput);
