@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <chrono>
 
 #include <omp.h>
 
@@ -28,6 +29,17 @@ struct CvType {};
 template<>
 struct CvType<CV_64F> { typedef double type_t; };
 
+typedef std::chrono::time_point<std::chrono::high_resolution_clock> clockTime;
+
+clockTime clockStart() {
+    return std::chrono::high_resolution_clock::now();
+}
+
+int clockEnd(clockTime start) {
+    clockTime stop = std::chrono::high_resolution_clock::now();
+    return duration_cast<std::chrono::microseconds>(stop - start).count();
+}
+
 void clearCMD() {
     #if defined _WIN32
         system("cls");
@@ -39,147 +51,84 @@ void clearCMD() {
 }
 
 class imageBW {
-    double** data;
-    size_t* size;
+    cv::Mat data;
 public:
     imageBW() {
-        data = (double**)malloc(0 * sizeof(double*));
-        //data[0] = (double*)malloc(sizeof(double));
-        //data[0][0] = 0.0;
-        size = (size_t*)malloc(sizeof(size_t) * 0);
-        //size[0] = 0;
-        //size[1] = 0;
+        data = cv::Mat::zeros(1, 1, CV_64F);
     }
 
     void resize(int Nx, int Ny) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = (size_t)Nx;
-        size[1] = (size_t)Ny;
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
-
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        data = cv::Mat::zeros(Ny, Nx, CV_64F);
     }
 
     void resize(size_t Nx, size_t Ny) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = Nx;
-        size[1] = Ny;
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
-
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        data = cv::Mat::zeros(Ny, Nx, CV_64F);
     }
 
     void resize(std::vector<size_t> winSize) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = winSize[0];
-        size[1] = winSize[1];
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
-
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        data = cv::Mat::zeros(winSize[1], winSize[0], CV_64F);
     }
 
     void resize(cv::Size imgSize) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        size[0] = imgSize.width;
-        size[1] = imgSize.height;
-
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
-
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        data = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
     }
 
     void resize(std::vector<cv::Point2d> bounds) {
-        size = (size_t*)realloc(size, 2 * sizeof(size_t));
-        int NsX, NfX, NsY, NfY;
+        int NsX, NfX, NsY, NfY, Nx, Ny;
         NsX = std::min(std::min((int)bounds[0].x, (int)bounds[1].x), std::min((int)bounds[2].x, (int)bounds[3].x));
         NfX = std::max(std::max((int)bounds[0].x, (int)bounds[1].x), std::max((int)bounds[2].x, (int)bounds[3].x));
         NsY = std::min(std::min((int)bounds[0].y, (int)bounds[1].y), std::min((int)bounds[2].y, (int)bounds[3].y));
         NfY = std::max(std::max((int)bounds[0].y, (int)bounds[1].y), std::max((int)bounds[2].y, (int)bounds[3].y));
-        size[0] = (size_t)(NfX - NsX);
-        size[1] = (size_t)(NfY - NsY);
-        
-        data = (double**)realloc(data, sizeof(double*) * size[0]);
-
-        #pragma omp parallel for
-            for (int i = 0; i < (int)size[0]; i++) {
-                data[i] = (double*)malloc(sizeof(double) * size[1]);
-                for (int j = 0; j < (int)size[1]; j++) {
-                    data[i][j] = 0.0;
-                }
-            }
+        Nx = NfX - NsX;
+        Ny = NfY - NsY;
+        data = cv::Mat::zeros(Ny, Nx, CV_64F);
     }
 
     void destroy() {
-        #pragma omp parallel for
-        for (int i = 0; i < (int)size[0]; i++) {
-            data[i] = (double*)realloc(data[i], 0 * sizeof(double));
-            free(data[i]);
-        }
-        data = (double**)realloc(data, 0 * sizeof(double*));
-        size = (size_t*)realloc(size, 0 * sizeof(size_t));
+        data.deallocate();
+    }
 
-        free(data);
-        free(size);
-        //_heapmin();
+    void populateImage(cv::Mat& image) {
+        data = image.clone();
     }
 
     void definePixel(int indexX, int indexY, double value) {
-        data[indexX][indexY] = value;
+        data.at<double>(indexY, indexX) = value;
     }
 
     void definePixel(size_t indexX, size_t indexY, double value) {
-        data[indexX][indexY] = value;
+        data.at<double>(indexY, indexX) = value;
     }
 
     void definePixel(int indexX, size_t indexY, double value) {
-        data[indexX][indexY] = value;
+        data.at<double>(indexY, indexX) = value;
     }
 
     void definePixel(size_t indexX, int indexY, double value) {
-        data[indexX][indexY] = value;
+        data.at<double>(indexY, indexX) = value;
     }
 
     double value(int indexX, int indexY) {
-        return data[indexX][indexY];
+        return data.at<double>(indexY, indexX);
+    }
+
+    void getMatrix(cv::Mat& output) {
+        output = data.clone();
     }
 
     size_t sizeX() {
-        return size[0];
+        return data.cols;
     }
 
     size_t sizeY() {
-        return size[1];
+        return data.rows;
     }
 
     void crop(std::vector<size_t> bounds, imageBW& output) {
         int NsX, NfX, NsY, NfY;
 
-        if (bounds[1] > size[0]) {
-            NfX = (int)size[0];
+        if (bounds[1] > data.cols) {
+            NfX = (int)data.cols;
         }
         else {
             NfX = (int)bounds[1];
@@ -190,8 +139,8 @@ public:
         else {
             NsX = (int)bounds[0];
         }
-        if (bounds[3] > size[1]) {
-            NfY = (int)size[0];
+        if (bounds[3] > data.rows) {
+            NfY = (int)data.rows;
         }
         else {
             NfY = (int)bounds[3];
@@ -202,25 +151,18 @@ public:
         else {
             NsY = (int)bounds[2];
         }
-        int Nx = NfX - NsX;
-        int Ny = NfY - NsY;
-        output.resize(Nx, Ny);
 
-        #pragma omp parallel for
-            for (int i = 0; i < Nx; i++) {
-                for (int j = 0; j < Ny; j++) {
-                    int Ni = (int)(NsX + i);
-                    int Nj = (int)(NsY + j);
-                    output.definePixel(i, j, data[Ni][Nj]);
-                }
-            }
+        cv::Rect ROI(NsX, NsY, NfX - NsX, NfY - NsY);
+        cv::Mat buffer = data(ROI);
+
+        output.populateImage(buffer);
     }
 
     void crop(std::vector<int> bounds, imageBW& output) {
         int NsX, NfX, NsY, NfY;
 
-        if (bounds[1] > size[0]) {
-            NfX = (int)size[0];
+        if (bounds[1] > data.cols) {
+            NfX = (int)data.cols;
         }
         else {
             NfX = (int)bounds[1];
@@ -231,8 +173,8 @@ public:
         else {
             NsX = (int)bounds[0];
         }
-        if (bounds[3] > size[1]) {
-            NfY = (int)size[0];
+        if (bounds[3] > data.rows) {
+            NfY = (int)data.rows;
         }
         else {
             NfY = (int)bounds[3];
@@ -243,32 +185,15 @@ public:
         else {
             NsY = (int)bounds[2];
         }
-        int Nx = NfX - NsX;
-        int Ny = NfY - NsY;
-        output.resize(Nx, Ny);
 
-        
-        #pragma omp parallel for
-            for (int i = 0; i < Nx; i++) {
-                for (int j = 0; j < Ny; j++) {
-                    int Ni = (int)(NsX + i);
-                    int Nj = (int)(NsY + j);
-                    output.definePixel(i, j, data[Ni][Nj]);
-                }
-            }
+        cv::Rect ROI(NsX, NsY, NfX - NsX, NfY - NsY);
+        cv::Mat buffer = data(ROI);
+
+        output.populateImage(buffer);
     }
-    
+
     void copy(imageBW& output) {
-        int Nx, Ny;
-        Nx = size[0];
-        Ny = size[1];
-        output.resize(Nx, Ny);
-        #pragma omp parallel for
-        for (int i = 0; i < Nx; i++) {
-            for (int j = 0; j < Ny; j++) {
-                output.definePixel(i, j, data[i][j]);
-            }
-        }
+        output.populateImage(data);
     }
 };
 
@@ -284,7 +209,7 @@ std::string getDate() {
     return dateString;
 }
 
-std::string getPath() {
+std::string getRootPath() {
     std::string output;
     #ifdef _WIN32
         std::filesystem::path buffer = std::filesystem::current_path();
@@ -467,46 +392,32 @@ void getImage(std::string file, imageBW& output) {
 
     if (buffer.type() == 2) {
         bitDepth = 16;
-        cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
+        cv::Mat bufferflip, buffer64f;
         buffer.convertTo(buffer64f, CV_64F);
+        buffer64f = buffer64f / pow(2, bitDepth);
+        cv::flip(buffer64f, bufferflip, 0);
 
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        output.populateImage(bufferflip);
+        bufferflip.release();
         buffer64f.release();
     }
     else if (buffer.type() == 6) {
         bitDepth = 64;
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer.at<double>(j, i);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
-    }
-    else{
-        bitDepth = 8;
-        cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
-        buffer.convertTo(buffer64f, CV_64F);
+        cv::Mat bufferflip;
+        cv::flip(buffer, bufferflip, 0);
 
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        output.populateImage(bufferflip);
+        bufferflip.release();
+    }
+    else {
+        bitDepth = 8;
+        cv::Mat bufferflip, buffer64f;
+        buffer.convertTo(buffer64f, CV_64F);
+        buffer64f = buffer64f / pow(2, bitDepth);
+        cv::flip(buffer64f, bufferflip, 0);
+
+        output.populateImage(bufferflip);
+        bufferflip.release();
         buffer64f.release();
     }
     buffer.release();
@@ -522,47 +433,32 @@ void getImage(cv::Mat& input, imageBW& output) {
 
     if (input.type() == 2) {
         bitDepth = 16;
-        cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
+        cv::Mat bufferflip, buffer64f;
         input.convertTo(buffer64f, CV_64F);
+        buffer64f = buffer64f / pow(2, bitDepth);
+        cv::flip(buffer64f, bufferflip, 0);
 
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        output.populateImage(bufferflip);
+        bufferflip.release();
         buffer64f.release();
     }
     else if (input.type() == 6) {
         bitDepth = 64;
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = input.at<double>(j, i);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
+        cv::Mat bufferflip;
+        cv::flip(input, bufferflip, 0);
+
+        output.populateImage(bufferflip);
+        bufferflip.release();
     }
     else {
         bitDepth = 8;
-        cv::Mat buffer64f = cv::Mat::zeros(imgSize.height, imgSize.width, CV_64F);
+        cv::Mat bufferflip, buffer64f;
         input.convertTo(buffer64f, CV_64F);
+        buffer64f = buffer64f / pow(2, bitDepth);
+        cv::flip(buffer64f, bufferflip, 0);
 
-        output.resize(imgSize);
-        #pragma omp parallel for
-            for (int i = 0; i < imgSize.width; i++) {
-                for (int j = 0; j < imgSize.height; j++) {
-                    double pxValue = buffer64f.at<double>(j, i) / pow(2, bitDepth);
-                    int jinv = imgSize.height - j;
-                    output.definePixel(i, jinv, pxValue);
-                }
-            }
-
+        output.populateImage(bufferflip);
+        bufferflip.release();
         buffer64f.release();
     }
 
@@ -573,14 +469,7 @@ void imgshow(imageBW& image) {
     int Ny = (int)image.sizeY();
     cv::Mat buffer(Ny, Nx, CV_64F);
 
-    #pragma omp parallel for
-        for (int i = 0; i < Nx; i++) {
-            for (int j = 0; j < Ny; j++) {
-                double pxBuffer = image.value(i, j);
-                int jinv = Ny - j;
-                buffer.at<CvType<CV_64F>::type_t>(jinv, i) = pxBuffer;
-            }
-        }
+    image.getMatrix(buffer);
 
     cv::namedWindow(" ", cv::WINDOW_AUTOSIZE);
     cv::imshow(" ", buffer);
@@ -604,9 +493,56 @@ void resizeImage(double& scaling, std::string& inputFile, std::string& outputFil
     output.release();
 }
 
+/**
+ * @brief Saves the final image along with the x-axis and y-axis data to a TIFF file.
+ *
+ * The resulting TIFF file has three pages:
+ *     the image, in units of (arbitrary) brightness per pixel
+ *     the x-axis, a 1 x N image in units of mrad for Pointing, in MeV for LowEnergy and HighEnergy
+ *     the y-axis, a M x 1 image in units of mrad
+ *
+ * @param image
+ * @param xAxis
+ * @param yAxis
+ * @param filepath
+ */
+void saveCroppedTransformedImage(imageBW& image, std::vector<double>& xAxis, std::vector<double>& yAxis, std::string filepath) {
+    std::vector<cv::Mat> tiff_pages;
+    cv::Mat imageMat;
+    cv::Mat xAxisMat = cv::Mat::zeros(1, (int)xAxis.size(), CV_64F);
+    cv::Mat yAxisMat = cv::Mat::zeros((int)yAxis.size(), 1, CV_64F);
+
+    image.getMatrix(imageMat);
+
+#pragma omp parallel for
+    for (int i = 0; i < (int)xAxis.size(); i++) {
+        xAxisMat.at<double>(0, i) = xAxis[i];
+    }
+
+#pragma omp parallel for
+    for (int j = 0; j < (int)yAxis.size(); j++) {
+        yAxisMat.at<double>(j, 0) = yAxis[j];
+    }
+
+    tiff_pages.push_back(imageMat);
+    tiff_pages.push_back(xAxisMat);
+    tiff_pages.push_back(yAxisMat);
+
+    cv::imwrite(filepath, tiff_pages);
+}
+
+enum ScreenName {
+    Pointing = 0,
+    LowEnergy = 1,
+    HighEnergy = 2
+};
+
 class spectrometer {
+    // paths to directories containing images, one for each screen
     std::vector<std::string> path;
+    // 3 x 5 array representing x, y, z, phi, theta for Pointing, LowEnergy, HighEnergy
     double** screen;
+    // pair of angles representing xMaxAngle, yMaxAngle. in milliradians, i believe -RvM
     double* angle;
     std::string analysis;
 
@@ -854,7 +790,12 @@ public:
 };
 
 class screenCalibration {
+    // 4 x 8 array representing 8 corners' coordinates for four screens
+    // first four represent coordinates in screen image of screen
+    // last four represent coordinates in transformed image
+    // in order top left, top right, bottom right, bottom left
     std::vector<std::vector<cv::Point2d>> calPoints;
+    // 4 x 2 array representing xsize, ysize for four screens
     std::vector<std::vector<double>> winSize;
     std::vector<std::vector<double>> threshold;
 public:
@@ -885,293 +826,310 @@ public:
 
         int N = (int)calibration.size();
 
-        #pragma omp parallel for
-            for (int i = 0; i < N; i++) {
-                if (calibration[i].find("xTEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[0][0].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yTEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[0][0].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xLEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[0][3].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yLEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[0][3].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xBEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[0][2].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yBEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[0][2].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xREPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[0][1].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yREPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[0][1].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xPadEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    winSize[0][0] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yPadEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    winSize[0][1] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xContrastEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[0][0] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xThresholdEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[0][1] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yContrastEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[0][2] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xThresholdEPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[0][3] = std::stod(strValue.c_str());
-                }
-
-                if (calibration[i].find("xTLEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[1][0].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yTLEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[1][0].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xBLEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[1][3].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yBLEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[1][3].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xBREScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[1][2].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yBREScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[1][2].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xTREScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[1][1].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yTREScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[1][1].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xPadEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    winSize[1][0] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yPadEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    winSize[1][1] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xContrastEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[1][0] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xThresholdEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[1][1] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yContrastEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[1][2] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xThresholdEScreenA") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[1][3] = std::stod(strValue.c_str());
-                }
-
-                if (calibration[i].find("xTLEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[2][0].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yTLEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[2][0].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xBLEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[2][3].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yBLEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[2][3].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xBREScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[2][2].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yBREScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[2][2].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xTREScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[2][1].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yTREScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[2][1].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xPadEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    winSize[2][0] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yPadEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    winSize[2][1] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xContrastEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[2][0] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xThresholdEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[2][1] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yContrastEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[2][2] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xThresholdEScreenB") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[2][3] = std::stod(strValue.c_str());
-                }
-
-                if (calibration[i].find("xTLPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[3][0].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yTLPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[3][0].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xBLPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[3][3].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yBLPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[3][3].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xBRPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[3][2].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yBRPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[3][2].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xTRPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[3][1].x = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yTRPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    calPoints[3][1].y = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xPadPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    winSize[3][0] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yPadPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    winSize[3][1] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xContrastPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[3][0] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xThresholdPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[3][1] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("yContrastPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[3][2] = std::stod(strValue.c_str());
-                }
-                if (calibration[i].find("xThresholdPPointing") != std::string::npos) {
-                    size_t indexStart = calibration[i].find("=") + 1;
-                    std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
-                    threshold[3][3] = std::stod(strValue.c_str());
-                }
+#pragma omp parallel for
+        for (int i = 0; i < N; i++) {
+            // top edge
+            if (calibration[i].find("xTEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[0][0].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yTEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[0][0].y = std::stod(strValue.c_str());
+            }
+            // left edge
+            if (calibration[i].find("xLEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[0][3].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yLEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[0][3].y = std::stod(strValue.c_str());
+            }
+            // bottom edge
+            if (calibration[i].find("xBEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[0][2].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yBEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[0][2].y = std::stod(strValue.c_str());
+            }
+            // right edge
+            if (calibration[i].find("xREPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[0][1].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yREPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[0][1].y = std::stod(strValue.c_str());
+            }
+            // how much to extend the crop window beyond edges
+            // use winSize to hold padding right now
+            if (calibration[i].find("xPadEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                winSize[0][0] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yPadEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                winSize[0][1] = std::stod(strValue.c_str());
+            }
+            // for calibration mode, to help find ruler marks in reference image
+            if (calibration[i].find("xContrastEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[0][0] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xThresholdEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[0][1] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yContrastEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[0][2] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xThresholdEPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[0][3] = std::stod(strValue.c_str());
             }
 
+            // top left
+            if (calibration[i].find("xTLEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[1][0].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yTLEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[1][0].y = std::stod(strValue.c_str());
+            }
+            // bottom left
+            if (calibration[i].find("xBLEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[1][3].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yBLEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[1][3].y = std::stod(strValue.c_str());
+            }
+            // bottom right
+            if (calibration[i].find("xBREScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[1][2].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yBREScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[1][2].y = std::stod(strValue.c_str());
+            }
+            // top right
+            if (calibration[i].find("xTREScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[1][1].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yTREScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[1][1].y = std::stod(strValue.c_str());
+            }
+            // padding
+            // use winSize to hold padding right now
+            if (calibration[i].find("xPadEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                winSize[1][0] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yPadEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                winSize[1][1] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xContrastEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[1][0] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xThresholdEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[1][1] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yContrastEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[1][2] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xThresholdEScreenA") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[1][3] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xTLEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[2][0].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yTLEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[2][0].y = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xBLEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[2][3].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yBLEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[2][3].y = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xBREScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[2][2].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yBREScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[2][2].y = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xTREScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[2][1].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yTREScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[2][1].y = std::stod(strValue.c_str());
+            }
+            // padding
+            // use winSize to hold padding right now
+            if (calibration[i].find("xPadEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                winSize[2][0] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yPadEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                winSize[2][1] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xContrastEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[2][0] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xThresholdEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[2][1] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yContrastEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[2][2] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xThresholdEScreenB") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[2][3] = std::stod(strValue.c_str());
+            }
+
+            if (calibration[i].find("xTLPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[3][0].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yTLPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[3][0].y = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xBLPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[3][3].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yBLPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[3][3].y = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xBRPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[3][2].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yBRPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[3][2].y = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xTRPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[3][1].x = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yTRPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                calPoints[3][1].y = std::stod(strValue.c_str());
+            }
+            // padding
+            // use winSize to hold padding right now
+            if (calibration[i].find("xPadPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                winSize[3][0] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yPadPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                winSize[3][1] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xContrastPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[3][0] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xThresholdPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[3][1] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("yContrastPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[3][2] = std::stod(strValue.c_str());
+            }
+            if (calibration[i].find("xThresholdPPointing") != std::string::npos) {
+                size_t indexStart = calibration[i].find("=") + 1;
+                std::string strValue = calibration[i].substr(indexStart, calibration[i].length() - indexStart);
+                threshold[3][3] = std::stod(strValue.c_str());
+            }
+        }
+
+        // determine desired points to transform the first four points to on transformed image
         for (int i = 0; i < 4; i++) {
             if (i == 0) {
                 double xL, xH, yL, yH, xC, yC;
@@ -1179,8 +1137,9 @@ public:
                 xL = std::min(std::min(calPoints[i][0].x, calPoints[i][1].x), std::min(calPoints[i][2].x, calPoints[i][3].x));
                 yH = std::max(std::max(calPoints[i][0].y, calPoints[i][1].y), std::max(calPoints[i][2].y, calPoints[i][3].y));
                 yL = std::min(std::min(calPoints[i][0].y, calPoints[i][1].y), std::min(calPoints[i][2].y, calPoints[i][3].y));
-                xC = (xH - xL)/2 + winSize[i][0];
-                yC = (yH - yL)/2 + winSize[i][1];
+                // at this point, winSize holds padding values
+                xC = (xH - xL) / 2 + winSize[i][0];
+                yC = (yH - yL) / 2 + winSize[i][1];
 
                 xH = xH - xL + winSize[i][0];
                 xL = winSize[i][0];
@@ -1196,6 +1155,7 @@ public:
                 calPoints[i][5].x = xH;
                 calPoints[i][5].y = yC;
 
+                // finally 
                 winSize[i][0] = xH + winSize[i][0];
                 winSize[i][1] = yH + winSize[i][1];
             }

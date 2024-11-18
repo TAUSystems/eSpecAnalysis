@@ -1014,6 +1014,7 @@ void readCalibration(std::string calPath, std::vector<cv::Mat>& H, std::vector<s
         yRuler[n] = ruler;
         ruler.clear();
     }
+
     int screen = 0;
     pixelAxis(screen, winRes[0][0], winRes[0][1], xRuler[0], yRuler[0], zP[0]);
     screen = 1;

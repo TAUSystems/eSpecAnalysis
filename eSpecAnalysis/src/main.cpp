@@ -5,7 +5,7 @@ int main() {
     int threadCount = omp_get_max_threads();
     omp_set_num_threads(threadCount);
 
-	std::string pathRoot = getPath();
+	std::string pathRoot = getRootPath();
 	std::string pathSettings = pathRoot + "/settings.cfg";
 	std::string pathCalibration = pathRoot + "/Calibration";
 	std::vector<std::string> settingsFile;
@@ -25,6 +25,7 @@ int main() {
 	calibration.loadCalibration(pathCalibration);
 
     int screen;
+
     switch (opMode) {
     case 0:
         std::cout << "\nCalibration Mode\n";
