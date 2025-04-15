@@ -1071,13 +1071,13 @@ void Contrast(double scale, std::vector<double>& input) {
     int N = (int)input.size();
 
     double avg = 0.0;
-    #pragma omp parallel for reduction(+:avg)
+    //#pragma omp parallel for reduction(+:avg)
         for (int i = 0; i < N; i++) {
             avg = avg + input[i];
         }
     avg = avg / N;
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
         for (int i = 1; i < N - 1; i++) {
             input[i] = (scale * (input[i] - avg) + avg);
         }
@@ -1102,7 +1102,7 @@ void Sum(imageBW& image, double& sum) {
 void Sum(std::vector<double>& input, double& sum) {
     int N = (int)input.size();
     double sum_buffer = 0.0;
-    #pragma omp parallel for reduction(+:sum_buffer)
+    //#pragma omp parallel for reduction(+:sum_buffer)
     for (int i = 0; i < N; i++) {
         sum_buffer = sum_buffer + input[i];
     }
@@ -1112,7 +1112,7 @@ void Sum(std::vector<double>& input, double& sum) {
 void Average(std::vector<double>& input, double& avg) {
     int N = (int)input.size();
     double avg_buffer = 0.0;
-    #pragma omp parallel for reduction(+:avg_buffer)
+    //#pragma omp parallel for reduction(+:avg_buffer)
         for (int i = 0; i < N; i++) {
             avg_buffer = avg_buffer + input[i];
         }
@@ -1123,7 +1123,7 @@ void Difference(std::vector<double>& input, std::vector<double>& output) {
     int N = (int)input.size() - 1;
     output.resize(N, 0.0);
     
-    #pragma omp parallel for
+    //#pragma omp parallel for
         for (int i = 0; i < N; i++) {
             output[i] = input[i + 1] - input[i];
         }
@@ -1132,7 +1132,7 @@ void Difference(std::vector<double>& input, std::vector<double>& output) {
 void Deviation(std::vector<double>& input, double& mean, double& stdev) {
     int N = (int)input.size();
     double stdev_buffer = 0.0;
-    #pragma omp parallel for reduction(+:stdev_buffer)
+    //#pragma omp parallel for reduction(+:stdev_buffer)
         for (int i = 0; i < N; i++) {
             stdev_buffer = stdev_buffer + (input[i] - mean) * (input[i] - mean);
         }
@@ -1154,7 +1154,7 @@ void linReg(std::vector<double>& x, std::vector<double>& y) {
     sumY = 0;
     sumXY = 0;
     sumX2 = 0;
-    #pragma omp parallel for reduction(+:sumX, sumY, sumXY, sumX2)
+    //#pragma omp parallel for reduction(+:sumX, sumY, sumXY, sumX2)
         for (int i = 0; i < N ; i++) {
             sumX = sumX + x[i];
             sumY = sumY + y[i];
@@ -1167,7 +1167,7 @@ void linReg(std::vector<double>& x, std::vector<double>& y) {
     a1 = (N * sumXY - sumX * sumY) / (N * sumX2 - sumX * sumX);
     a0 = (sumX2 * sumY - sumX * sumXY) / (N * sumX2 - sumX * sumX);
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
         for (int i = 0; i < N; i++) {
             y[i] = a0 + a1 * x[i];
         }
