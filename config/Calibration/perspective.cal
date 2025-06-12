@@ -1,16 +1,16 @@
-xTEPointing = 1004
-yTEPointing = 394
-xLEPointing = 788
-yLEPointing = 792
-xBEPointing = 990
-yBEPointing = 1204
-xREPointing = 1250
-yREPointing = 834
+xTEPointing = 1022
+yTEPointing = 314
+xLEPointing = 712
+yLEPointing = 768
+xBEPointing = 1020
+yBEPointing = 1236
+xREPointing = 1358
+yREPointing = 784
 xPadEPointing = 330
 yPadEPointing = 160
 xContrastEPointing = 20.0
 yContrastEPointing = 10.0
-xThresholdEPointing = 0.60
+xThresholdEPointing = 0.1
 yThresholdEPointing = 1.20
 
 xTLEScreenA = 162
