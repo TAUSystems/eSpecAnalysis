@@ -5,7 +5,7 @@ Pointing:
 z: Laser Propagation Axis
 y: Vertical Axis (g points in negative Y-Dir)
 x: Horizontal Axis (right hand rule)
-phi: angle from z-axis in XZ-plane. phi = 0 -> alignment with z-axis.
+phi: angle from x-axis in XZ-plane. phi = 0 -> alignment with x-axis.
 theta: angle from y-axis in YZ-plane. theta = 0 -> alignment with y-axis.
 Note: Do not confuse with in code xAxis, yAxis. These are image coordinates for horizontal, and vertical respectively.
 (x,y,z,phi,theta) are used to transform from image coordinates into lab coordinates.
