@@ -441,14 +441,14 @@ void mRadAxis(spectrometer& eSpec, int& screen, std::vector<double>& rulerX, std
 	int N = std::max(Nx, Ny);
 
 	double x, y, z, phi, theta;
-	phi = eSpec.phi(0) / 180 * pi;
-	theta = eSpec.theta(0) / 180 * pi;
+	phi = eSpec.phi(screen) / 180 * pi;
+	theta = eSpec.theta(screen) / 180 * pi;
 
 	if (screen == 0) {
 		for (int i = 0; i < N; i++) {
 			if (i < Nx) {
-				z = eSpec.z(0) + rulerX[i] * std::cos(phi);
-				x = -(rulerX[i] * std::sin(phi) - eSpec.x(0));
+				z = eSpec.z(0) + rulerX[i] * std::sin(phi);
+				x = -(rulerX[i] * std::cos(phi) - eSpec.x(0));
 
 				rulerX[i] = 1000.0 * std::atan2(x,z);
 			}
@@ -1159,6 +1159,18 @@ void calMode(spectrometer& eSpec, std::string& pathCalibration, std::vector<cv::
 			loadError = 0;
 			image.destroy();
 			viewRes.clear();
+
+			std::cout << winRes[0][0] << ",\t" << winRes[0][1] << ",\t" << zP[0][0] << ",\t" << zP[0][1] << "\n";
+			for (int i = 0; i < 3; i++) {
+				for (int j = 0; j < 3; j++) {
+					if (i == 2 && j == 2) {
+						std::cout << H[0].at<double>(i, j);
+					}
+					else {
+						std::cout << H[0].at<double>(i, j) << ",\t";
+					}
+				}
+			}
 		}
 		else {
 			std::cout << "\nNo Reference Found at: " << eSpec.screenPath(screen) << "\n";

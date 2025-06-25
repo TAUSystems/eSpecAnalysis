@@ -6,8 +6,8 @@ int main() {
     omp_set_num_threads(threadCount);
 
 	std::string pathRoot = getRootPath();
-	std::string pathSettings = pathRoot + "/settings.cfg";
-	std::string pathCalibration = pathRoot + "/Calibration";
+	std::string pathSettings = pathRoot + "/config/settings.cfg";
+	std::string pathCalibration = pathRoot + "/config/Calibration";
 	std::vector<std::string> settingsFile;
 	std::vector<cv::Mat> H;
 	std::vector<std::vector<double>> xRuler, yRuler;
