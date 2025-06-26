@@ -249,14 +249,14 @@ void mRadAxis(spectrometer& eSpec, const ScreenName& screen, std::vector<double>
 	int N = std::max(Nx, Ny);
 
 	double x, y, z, phi, theta;
-	phi = eSpec.phi(0) / 180 * pi;
-	theta = eSpec.theta(0) / 180 * pi;
+	phi = eSpec.phi(screen) / 180 * pi;
+	theta = eSpec.theta(screen) / 180 * pi;
 
 	if (screen == Pointing) {
 		for (int i = 0; i < N; i++) {
 			if (i < Nx) {
-				z = eSpec.z(0) + xAxis[i] * std::cos(phi);
-				x = -(xAxis[i] * std::sin(phi) - eSpec.x(0));
+				z = eSpec.z(0) + xAxis[i] * std::sin(phi);
+				x = -(xAxis[i] * std::cos(phi) - eSpec.x(0));
 
 				xAxis[i] = 1000.0 * std::atan2(x,z);
 			}
