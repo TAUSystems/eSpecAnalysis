@@ -1,5 +1,5 @@
-----------------------------------eSpecAnalysis v2023.10.08.01----------------------------------
-settings.cfg Notes:
+# eSpecAnalysis 
+v2023.10.08.01
 modes (NOTE: Currently only Modes 0,1,4,5,6 are implemented.):
 	0: Calibrate Perspective Correction and semi-automatic calibration for pixel scaling.
 	1: Retrieve pointing from pointing screen and generate electron spectrum for electron
@@ -117,9 +117,18 @@ eScreenX.map Notes:
 		-Array of screen positions for electron trajectory of a given energy (row) and
 			pointing (column)
 
-History:
+## History:
 v2023.10.08.01
 	-Reworked source code structure to be cmake compatible.
 	-Removed windows only dependencies. Code should be unix compatible.
 	-Recast some functions to allow for better integration with openCV data structure.
 	-Restructure certain functions to improve stability associated with missing files. 
+
+## Authors
+This repository contains software developed through a collaboration involving personnel 
+affiliated with TAU Systems and The University of Texas at Austin. Individual contributions 
+were made by contributors acting in their respective employment or collaborative 
+capacities.
+
+This project was developed by Thanh Ha <thanh.ha@tausystems.com> at [TAU Systems Inc.](https://www.tausystems.com) 
+in collaboration with the UT3 group at The University of Texas at Austin.
